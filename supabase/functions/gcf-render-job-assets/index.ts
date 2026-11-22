@@ -146,6 +146,10 @@ Deno.serve(async (req: Request) => {
       return json({ error: `Unsupported render asset role: ${role}` }, 422);
     }
 
+    if (typeof asset.sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(asset.sha256)) {
+      return json({ error: `Asset is missing a valid SHA-256: ${asset.id}` }, 422);
+    }
+
     if (asset.storage_bucket !== BUCKET || typeof asset.storage_path !== "string" ||
         !asset.storage_path.startsWith(`${job.owner_id}/`) ||
         asset.storage_path.split("/").some((part: string) => part === ".." || part === ".")) {
