@@ -1,0 +1,72 @@
+name: Test generic renderer with synthetic media
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      - name: Syntax check
+        run: bash -n render/render_generic.sh
+      - name: Generate synthetic test inputs
+        run: |
+          mkdir -p production/renderer-test/media
+          ffmpeg -hide_banner -loglevel error -f lavfi -i color=c=0x18243a:s=360x640:d=2:r=24 -an -c:v libx264 -pix_fmt yuv420p production/renderer-test/media/scene-01.mp4
+          ffmpeg -hide_banner -loglevel error -f lavfi -i color=c=0x324a62:s=360x640:d=2:r=24 -an -c:v libx264 -pix_fmt yuv420p production/renderer-test/media/scene-02.mp4
+          ffmpeg -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=4 -c:a pcm_s16le production/renderer-test/media/voiceover.wav
+          cat > production/renderer-test/rights-review.json <<'JSON'
+          {
+            "episode": "renderer-test",
+            "assets": [{
+              "file": "scene-01.mp4",
+              "status": "approved",
+              "commercial_use_confirmed": true,
+              "releases_reviewed": true,
+              "trademarks_reviewed": true,
+              "reviewer_approved": true,
+              "source_url": "synthetic://generated-test",
+              "license_url": "synthetic://generated-test"
+            }, {
+              "file": "scene-02.mp4",
+              "status": "approved",
+              "commercial_use_confirmed": true,
+              "releases_reviewed": true,
+              "trademarks_reviewed": true,
+              "reviewer_approved": true,
+              "source_url": "synthetic://generated-test",
+              "license_url": "synthetic://generated-test"
+            }]
+          }
+          JSON
+          cat > production/renderer-test/rights-review.json.tmp <<'JSON'
+          {"voiceover":{"status":"approved","rights_confirmed":true,"reviewer_approved":true}}
+          JSON
+          python3 - <<'PY'
+          import json
+          p="production/renderer-test/rights-review.json"
+          d=json.load(open(p))
+          d.update(json.load(open(p+".tmp")))
+          json.dump(d,open(p,"w"))
+          PY
+      - name: Render synthetic vertical test
+        run: bash render/render_generic.sh renderer-test vertical artifacts/renderer-test.mp4
+      - name: Assert output metadata
+        run: |
+          test -s artifacts/renderer-test.mp4
+          test -s artifacts/renderer-test.mp4.sha256
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 artifacts/renderer-test.mp4)" = "1080x1920"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: renderer-synthetic-test
+          path: artifacts/renderer-test.mp4*
+          retention-days: 1
