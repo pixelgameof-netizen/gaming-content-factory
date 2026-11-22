@@ -96,7 +96,10 @@ Deno.serve(async (req: Request) => {
       .in("source_id", sourceIds)
     : { data: [], error: null };
   if (reviewsError) return json({ error: "Unable to load rights reviews" }, 500);
-  const reviewBySource = new Map((reviews ?? []).map((review) => [review.source_id, review]));
+  const reviewBySource = new Map();
+  for (const review of reviews ?? []) {
+    if (!reviewBySource.has(review.source_id)) reviewBySource.set(review.source_id, review);
+  }
 
   let sceneCount = 0;
   let voiceCount = 0;
@@ -130,8 +133,10 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Asset storage location is invalid" }, 403);
     }
 
-    if (role === "gameplay" || role === "trailer" || role === "music") {
-      if (!asset.source_id) return json({ error: "Source-backed media requires a rights review" }, 403);
+    if ((role === "gameplay" || role === "trailer" || role === "music") && !asset.source_id) {
+      return json({ error: "Source-backed media requires a rights review" }, 403);
+    }
+    if (asset.source_id) {
       const review = reviewBySource.get(asset.source_id);
       const commonApproved = review?.status === "approved_by_owner" &&
         review.commercial_use === true && review.derivatives_allowed === true &&
