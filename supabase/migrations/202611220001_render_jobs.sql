@@ -5,6 +5,10 @@ create table if not exists public.render_jobs (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references auth.users(id) on delete cascade,
   package_id uuid not null,
+  output_type text not null default 'short'
+    check (output_type in ('long_video','short')),
+  platform text not null default 'youtube_shorts'
+    check (platform in ('youtube','youtube_shorts','tiktok','instagram_reels','facebook_reels')),
   status text not null default 'queued'
     check (status in ('queued','preparing','rendering','uploading','quality_check','awaiting_owner','failed','cancelled')),
   aspect_ratio text not null check (aspect_ratio in ('9:16','16:9')),
