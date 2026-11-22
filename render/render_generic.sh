@@ -25,7 +25,7 @@ if not assets: raise SystemExit("rights-review.json needs an assets array")
 for a in assets:
     f=a.get("file")
     if not f or not (media/f).is_file(): raise SystemExit(f"Missing asset: {f}")
-    if a.get("status")!="approved" or a.get("commercial_use") is not True:
+    if a.get("status")!="approved" or a.get("commercial_use_confirmed") is not True:
         raise SystemExit(f"Asset not approved for commercial use: {f}")
     if a.get("releases_reviewed") is not True or a.get("trademarks_reviewed") is not True or a.get("reviewer_approved") is not True:
         raise SystemExit(f"Human review incomplete: {f}")
