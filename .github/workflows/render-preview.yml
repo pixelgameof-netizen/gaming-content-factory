@@ -1,4 +1,4 @@
-name: Render preview (manual)
+name: Render test preview (manual)
 
 on:
   workflow_dispatch:
@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   render:
-    name: Build and publish preview file
+    name: Build test preview (no public upload)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
