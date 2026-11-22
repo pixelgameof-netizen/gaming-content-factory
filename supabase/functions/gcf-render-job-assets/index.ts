@@ -91,19 +91,25 @@ Deno.serve(async (req: Request) => {
   const sourceIds = [...new Set(assets.map((asset) => asset.source_id).filter(Boolean))] as string[];
   const { data: reviews, error: reviewsError } = sourceIds.length
     ? await admin.from("rights_reviews")
-      .select("source_id,status,commercial_use,derivatives_allowed,redistribution_allowed,music_rights_verified,game_policy_verified,third_party_assets_verified,license_url,expires_at,reviewed_by,reviewed_at")
+      .select("source_id,status,commercial_use,derivatives_allowed,redistribution_allowed,music_rights_verified,game_policy_verified,third_party_assets_verified,license_url,expires_at,reviewed_by,reviewed_at,created_at")
       .eq("owner_id", job.owner_id)
       .in("source_id", sourceIds)
+      .order("created_at", { ascending: false })
     : { data: [], error: null };
   if (reviewsError) return json({ error: "Unable to load rights reviews" }, 500);
   const reviewBySource = new Map();
   for (const review of reviews ?? []) {
     if (!reviewBySource.has(review.source_id)) reviewBySource.set(review.source_id, review);
   }
+  const { data: sources, error: sourcesError } = sourceIds.length
+    ? await admin.from("sources").select("id,source_url").eq("owner_id", job.owner_id).in("id", sourceIds)
+    : { data: [], error: null };
+  if (sourcesError) return json({ error: "Unable to load source evidence" }, 500);
+  const sourceById = new Map((sources ?? []).map((source) => [source.id, source]));
 
   let sceneCount = 0;
   let voiceCount = 0;
-  const files: Array<{ file_name: string; role: string; url: string; sha256: string | null }> = [];
+  const files: Array<{ file_name: string; role: string; url: string; sha256: string | null; rights: Record<string, unknown> }> = [];
   for (const item of requested) {
     const asset = byId.get(item.asset_id as string)!;
     const fileName = item.file_name as string;
@@ -149,10 +155,25 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    const review = asset.source_id ? reviewBySource.get(asset.source_id) : null;
+    const source = asset.source_id ? sourceById.get(asset.source_id) : null;
+    const reviewerApproved = !asset.source_id || (review?.reviewed_by === job.owner_id && Boolean(review?.reviewed_at));
+    const rights: Record<string, unknown> = role === "voiceover" && !asset.source_id
+      ? { status: "approved", rights_confirmed: true, reviewer_approved: true }
+      : {
+        status: "approved",
+        commercial_use_confirmed: review?.commercial_use === true,
+        publisher_policy_verified: review?.game_policy_verified === true,
+        third_party_assets_verified: review?.third_party_assets_verified === true,
+        rights_confirmed: true,
+        reviewer_approved: reviewerApproved,
+        source_url: source?.source_url ?? "",
+        license_url: review?.license_url ?? "",
+      };
     const { data: signed, error: signError } = await admin.storage.from(BUCKET)
       .createSignedUrl(asset.storage_path, URL_TTL_SECONDS, { download: fileName });
     if (signError || !signed?.signedUrl) return json({ error: "Unable to sign a source asset" }, 502);
-    files.push({ file_name: fileName, role, url: signed.signedUrl, sha256: asset.sha256 ?? null });
+    files.push({ file_name: fileName, role, url: signed.signedUrl, sha256: asset.sha256 ?? null, rights });
   }
 
   if (sceneCount < 1 || voiceCount !== 1) {
