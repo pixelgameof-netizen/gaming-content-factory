@@ -87,15 +87,15 @@ It is intentionally separate from the live legacy `gcf-render-assets` function, 
 
 ### Request and response contract
 
-- Method: POST; authorization: server-side `GCF_RENDER_GATEWAY_TOKEN` bearer token.
+- Method: POST; authorization: a GitHub Actions OIDC identity token with audience `gcf-render-job-assets`. The function verifies the issuer/signature and restricts repository ID, owner actor ID, workflow file, and allowed branch refs; no shared bearer secret is needed.
 - Request body: `{ "job_id": "<render_jobs UUID>" }`. The response also carries the job's output type, destination platform, and aspect ratio.
 - The function reads the job from `render_jobs`, then resolves only assets whose owner and package match that job.
 - Manifest entries use `{ "asset_id": "<media_assets UUID>", "file_name": "scene-01.mp4" }`.
 - Accepted source roles: `gameplay`, `trailer`, exactly one `voiceover`, and optional `music`.
 - Gameplay/trailer assets must be approved MP4s; voiceover and music must be WAV files.
 - Every source-backed gameplay/trailer/music asset (and any source-backed voiceover) must have `media_assets.rights_status='approved'` and the latest matching `rights_reviews` row must be `approved_by_owner`, with commercial use, derivatives, redistribution, game-policy and third-party checks, owner review evidence, and a non-expired license. Music additionally requires `music_rights_verified=true`.
-- Only private `gcf-source-media` objects beneath the job owner's storage prefix are signed. URLs expire after 10 minutes. Responses are no-store. The function does not choose among historical rights reviews arbitrarily: it evaluates the most recent review per source.
-- The function does not publish, mutate approval state, or mark a render job complete.
+- Only private `gcf-source-media` objects beneath the job owner's storage prefix are signed. Every asset must carry a valid SHA-256. URLs expire after 10 minutes. Responses are no-store. The function does not choose among historical rights reviews arbitrarily: it evaluates the most recent review per source. It returns the rights evidence required by the FFmpeg renderer.
+- The function does not publish, mutate approval state, or mark a render job complete. `.github/workflows/render-job.yml` now stages a manual OIDC-protected workflow that fetches the signed assets, verifies SHA-256, builds the renderer rights manifest, and produces a one-day review artifact. It does not yet upload the final MP4 to Supabase.
 
 ### Deployment gate
 
