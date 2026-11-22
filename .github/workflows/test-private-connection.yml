@@ -1,0 +1,37 @@
+name: Test private Supabase connection (no media download)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check gateway authentication without requesting signed URLs
+        env:
+          GCF_RENDER_GATEWAY_TOKEN: ${{ secrets.GCF_RENDER_GATEWAY_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GCF_RENDER_GATEWAY_TOKEN:-}" ]; then
+            echo "GitHub secret GCF_RENDER_GATEWAY_TOKEN is missing."
+            exit 1
+          fi
+          code="$(curl -sS -o response.json -w '%{http_code}' \
+            -X POST "https://pyrrcfegucvxyxlxzowu.supabase.co/functions/v1/gcf-render-assets" \
+            -H "Authorization: Bearer $GCF_RENDER_GATEWAY_TOKEN" \
+            -H 'Content-Type: application/json' \
+            --data '{"episode":"short-01"}')"
+          if [ "$code" = "409" ] && jq -e '.error == "Required source files are not all present"' response.json >/dev/null; then
+            echo "SUCCESS: GitHub authenticated to the private Supabase gateway. Media is still absent; no signed URLs were issued."
+          elif [ "$code" = "401" ]; then
+            echo "FAIL: Supabase rejected the gateway token. Check the same token is saved in both secret stores."
+            exit 1
+          else
+            echo "Unexpected gateway response HTTP $code."
+            jq -r '.error // "No diagnostic returned"' response.json || true
+            exit 1
+          fi
