@@ -1,15 +1,13 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { createRemoteJWKSet, jwtVerify } from "npm:jose@5.9.6";
 
 const BUCKET = "gcf-source-media";
 const URL_TTL_SECONDS = 600;
+const GITHUB_JWKS = createRemoteJWKSet(new URL("https://token.actions.githubusercontent.com/.well-known/jwks"));
+const ALLOWED_REFS = new Set(["refs/heads/hardening/renderer-rights-validation", "refs/heads/main"]);
+const REPOSITORY = "pixelgameof-netizen/gaming-content-factory";
+const WORKFLOW_PATH = `${REPOSITORY}/.github/workflows/render-job.yml`;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function constantTimeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
 
 function json(body: unknown, status = 200): Response {
   return Response.json(body, {
@@ -21,8 +19,7 @@ function json(body: unknown, status = 200): Response {
 const secretKeys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}");
 const adminKey = secretKeys.default;
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
-const gatewayToken = Deno.env.get("GCF_RENDER_GATEWAY_TOKEN");
-if (!adminKey || !supabaseUrl || !gatewayToken) {
+if (!adminKey || !supabaseUrl) {
   throw new Error("Required server-side environment configuration is missing");
 }
 const admin = createClient(supabaseUrl, adminKey, {
@@ -32,7 +29,23 @@ const admin = createClient(supabaseUrl, adminKey, {
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   const supplied = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-  if (!constantTimeEqual(supplied, gatewayToken)) return json({ error: "Unauthorized" }, 401);
+  if (!supplied) return json({ error: "Missing GitHub Actions identity token" }, 401);
+  let identity;
+  try {
+    const verified = await jwtVerify(supplied, GITHUB_JWKS, {
+      issuer: "https://token.actions.githubusercontent.com",
+      audience: "gcf-render-job-assets",
+    });
+    identity = verified.payload;
+  } catch {
+    return json({ error: "Invalid GitHub Actions identity token" }, 401);
+  }
+  const expectedWorkflow = typeof identity.ref === "string" ? `${WORKFLOW_PATH}@${identity.ref}` : "";
+  if (identity.repository !== REPOSITORY || String(identity.repository_id) !== "1465927071" ||
+      String(identity.actor_id) !== "359316091" || typeof identity.ref !== "string" ||
+      !ALLOWED_REFS.has(identity.ref) || identity.workflow_ref !== expectedWorkflow) {
+    return json({ error: "GitHub Actions workflow identity is not authorized" }, 403);
+  }
 
   let body: { job_id?: unknown };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON body" }, 400); }
