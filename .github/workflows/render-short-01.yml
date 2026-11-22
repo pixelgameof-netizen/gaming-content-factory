@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 20
     env:
       SUPABASE_FUNCTION_URL: https://pyrrcfegucvxyxlxzowu.supabase.co/functions/v1/gcf-render-assets
-      SUPABASE_RENDER_KEY: ${{ secrets.SUPABASE_RENDER_KEY }}
+      GCF_RENDER_GATEWAY_TOKEN: ${{ secrets.GCF_RENDER_GATEWAY_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
