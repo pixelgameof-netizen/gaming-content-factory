@@ -78,3 +78,25 @@ If the secure credential exchange cannot be completed, stop the job rather than 
 4. Wire the Floot UI to create jobs, show progress, preview private outputs, and collect hash-bound approval.
 5. Run end-to-end tests with authorized gameplay.
 6. Review security findings and deployment settings; keep the existing draft PR unmerged until explicitly approved.
+
+
+## Dynamic asset handoff implementation (staged, not deployed)
+
+A new Edge Function source file is staged at `supabase/functions/gcf-render-job-assets/index.ts`.
+It is intentionally separate from the live legacy `gcf-render-assets` function, so no production behavior is replaced.
+
+### Request and response contract
+
+- Method: POST; authorization: server-side `GCF_RENDER_GATEWAY_TOKEN` bearer token.
+- Request body: `{ "job_id": "<render_jobs UUID>" }`.
+- The function reads the job from `render_jobs`, then resolves only assets whose owner and package match that job.
+- Manifest entries use `{ "asset_id": "<media_assets UUID>", "file_name": "scene-01.mp4" }`.
+- Accepted source roles: `gameplay`, `trailer`, exactly one `voiceover`, and optional `music`.
+- Gameplay/trailer assets must be approved MP4s; voiceover and music must be WAV files.
+- Every source-backed gameplay/trailer/music asset must have `media_assets.rights_status='approved'` and a matching `rights_reviews.status='approved_by_owner'`, commercial use, derivatives, redistribution, game-policy and third-party checks, owner review evidence, and a non-expired license. Music additionally requires `music_rights_verified=true`.
+- Only private `gcf-source-media` objects beneath the job owner's storage prefix are signed. URLs expire after 10 minutes. Responses are no-store.
+- The function does not publish, mutate approval state, or mark a render job complete.
+
+### Deployment gate
+
+This source depends on the staged `render_jobs` migration. It must be type-checked in CI, reviewed, and deployed only after the migration is applied and a controlled authenticated test succeeds. The function is not deployed to Supabase yet. The new CI step runs `deno check` against this source.
