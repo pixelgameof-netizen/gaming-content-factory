@@ -41,8 +41,8 @@ jobs:
               "file": "scene-01.mp4",
               "status": "approved",
               "commercial_use_confirmed": true,
-              "releases_reviewed": true,
-              "trademarks_reviewed": true,
+              "publisher_policy_verified": true,
+              "third_party_assets_verified": true,
               "reviewer_approved": true,
               "source_url": "synthetic://generated-test",
               "license_url": "synthetic://generated-test"
@@ -50,8 +50,8 @@ jobs:
               "file": "scene-02.mp4",
               "status": "approved",
               "commercial_use_confirmed": true,
-              "releases_reviewed": true,
-              "trademarks_reviewed": true,
+              "publisher_policy_verified": true,
+              "third_party_assets_verified": true,
               "reviewer_approved": true,
               "source_url": "synthetic://generated-test",
               "license_url": "synthetic://generated-test"
