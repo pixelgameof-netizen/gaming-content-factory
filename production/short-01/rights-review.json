@@ -1,24 +1,91 @@
 {
   "episode": "short-01",
-  "overall_status": "BLOCKED_PENDING_REVIEW",
+  "overall_status": "BLOCKED_PENDING_MEDIA_INSPECTION_AND_HUMAN_APPROVAL",
+  "license_reference": "https://www.pexels.com/license/",
   "assets": [
-    {"file":"scene-01.mp4","status":"pending","source_url":null,"creator":null,"license_name":null,"license_url":null,"commercial_use_confirmed":false,"attribution_required":null,"releases_reviewed":false,"trademarks_reviewed":false,"reviewer_approved":false},
-    {"file":"scene-02.mp4","status":"pending","source_url":null,"creator":null,"license_name":null,"license_url":null,"commercial_use_confirmed":false,"attribution_required":null,"releases_reviewed":false,"trademarks_reviewed":false,"reviewer_approved":false},
-    {"file":"scene-03.mp4","status":"pending","source_url":null,"creator":null,"license_name":null,"license_url":null,"commercial_use_confirmed":false,"attribution_required":null,"releases_reviewed":false,"trademarks_reviewed":false,"reviewer_approved":false},
-    {"file":"scene-04.mp4","status":"pending","source_url":null,"creator":null,"license_name":null,"license_url":null,"commercial_use_confirmed":false,"attribution_required":null,"releases_reviewed":false,"trademarks_reviewed":false,"reviewer_approved":false},
-    {"file":"scene-05.mp4","status":"pending","source_url":null,"creator":null,"license_name":null,"license_url":null,"commercial_use_confirmed":false,"attribution_required":null,"releases_reviewed":false,"trademarks_reviewed":false,"reviewer_approved":false}
+    {
+      "file": "scene-01.mp4",
+      "status": "candidate_pending_inspection",
+      "source_url": "https://www.pexels.com/video/aerial-night-view-of-city-streets-and-traffic-40755806/",
+      "creator": "Şinasi Müldür",
+      "license_name": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "commercial_use_confirmed": true,
+      "attribution_required": false,
+      "releases_reviewed": false,
+      "trademarks_reviewed": false,
+      "reviewer_approved": false,
+      "editorial_use": "Opening night-city establishing shot; generic stock, not GTA VI footage."
+    },
+    {
+      "file": "scene-02.mp4",
+      "status": "candidate_pending_inspection",
+      "source_url": "https://www.pexels.com/video/aerial-view-of-serene-tropical-beach-at-sunset-37446263/",
+      "creator": "Alef Morais",
+      "license_name": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "commercial_use_confirmed": true,
+      "attribution_required": false,
+      "releases_reviewed": false,
+      "trademarks_reviewed": false,
+      "reviewer_approved": false,
+      "editorial_use": "Coastal Leonida mood background only; pair with original map graphics, not a game map."
+    },
+    {
+      "file": "scene-03.mp4",
+      "status": "candidate_pending_inspection",
+      "source_url": "https://www.pexels.com/video/silhouette-of-two-people-talking-at-twilight-34660195/",
+      "creator": "Burak Bahadır Büyükkılınç",
+      "license_name": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "commercial_use_confirmed": true,
+      "attribution_required": false,
+      "releases_reviewed": false,
+      "trademarks_reviewed": false,
+      "reviewer_approved": false,
+      "editorial_use": "Generic two-person silhouette; do not identify subjects as Jason or Lucia."
+    },
+    {
+      "file": "scene-04.mp4",
+      "status": "candidate_pending_inspection",
+      "source_url": "https://www.pexels.com/video/a-highway-at-night-with-cars-driving-on-it-27852530/",
+      "creator": "Sururi Ballıdağ",
+      "license_name": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "commercial_use_confirmed": true,
+      "attribution_required": false,
+      "releases_reviewed": false,
+      "trademarks_reviewed": false,
+      "reviewer_approved": false,
+      "editorial_use": "Night highway action insert; generic stock, not GTA VI gameplay."
+    },
+    {
+      "file": "scene-05.mp4",
+      "status": "candidate_pending_inspection",
+      "source_url": "https://www.pexels.com/video/the-dark-room-with-two-people-walking-in-the-dark-19867786/",
+      "creator": "Ferhat E. Arslan",
+      "license_name": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "commercial_use_confirmed": true,
+      "attribution_required": false,
+      "releases_reviewed": false,
+      "trademarks_reviewed": false,
+      "reviewer_approved": false,
+      "editorial_use": "Closing two-person silhouette for question/CTA; do not imply depiction of named characters."
+    }
   ],
   "voiceover": {
-    "file":"voiceover.wav",
-    "status":"pending",
-    "rights_confirmed":false,
-    "reviewer_approved":false
+    "file": "voiceover.wav",
+    "status": "pending_generation_and_listening_review",
+    "rights_confirmed": false,
+    "reviewer_approved": false,
+    "note": "Do not substitute a low-quality test voice. Use a free locally generated open-source Spanish voice only after confirming model/license and auditioning the result."
   },
   "music": {
-    "file":"music.wav",
-    "required":false,
-    "status":"not_included",
-    "rights_confirmed":false,
-    "reviewer_approved":false
+    "file": "music.wav",
+    "required": false,
+    "status": "not_included",
+    "rights_confirmed": false,
+    "reviewer_approved": false
   }
 }
