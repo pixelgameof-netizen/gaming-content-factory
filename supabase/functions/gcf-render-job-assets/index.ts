@@ -42,7 +42,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: job, error: jobError } = await admin
     .from("render_jobs")
-    .select("id,owner_id,package_id,status,aspect_ratio,manifest,expires_at")
+    .select("id,owner_id,package_id,status,output_type,platform,aspect_ratio,manifest,expires_at")
     .eq("id", body.job_id)
     .maybeSingle();
   if (jobError) return json({ error: "Unable to load render job" }, 500);
@@ -161,6 +161,8 @@ Deno.serve(async (req: Request) => {
   return json({
     job_id: job.id,
     package_id: job.package_id,
+    output_type: job.output_type,
+    platform: job.platform,
     aspect_ratio: job.aspect_ratio,
     expires_in: URL_TTL_SECONDS,
     files,
