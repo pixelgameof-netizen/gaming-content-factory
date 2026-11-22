@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: render-preview
@@ -19,7 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Install FFmpeg
         run: |
@@ -44,15 +44,3 @@ jobs:
           path: preview.mp4
           if-no-files-found: error
           retention-days: 1
-
-      - name: Save public browser-playable copy
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mkdir -p previews
-          cp preview.mp4 "previews/render-${GITHUB_RUN_ID}.mp4"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "previews/render-${GITHUB_RUN_ID}.mp4"
-          git commit -m "Add validated cloud render preview ${GITHUB_RUN_ID}"
-          git push
