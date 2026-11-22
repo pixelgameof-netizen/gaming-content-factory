@@ -1,6 +1,10 @@
 name: Test generic renderer with synthetic media
 
 on:
+  push:
+    paths:
+      - 'render/render_generic.sh'
+      - '.github/workflows/test-render-generic.yml'
   workflow_dispatch:
 
 permissions:
