@@ -1,0 +1,63 @@
+{
+  "project": "Gaming Content Factory",
+  "episode": "short-01",
+  "working_title": "GTA VI — Jason y Lucía: confiar cuando todo sale mal",
+  "target_duration_seconds": 51,
+  "format": { "aspect_ratio": "9:16", "width": 1080, "height": 1920, "fps": 30 },
+  "status": "PREPRODUCTION",
+  "voiceover": {
+    "required_file": "production/short-01/media/voiceover.wav",
+    "status": "PENDING",
+    "note": "Narración final no grabada ni generada. No sustituir por una voz sintética de prueba."
+  },
+  "scenes": [
+    {
+      "id": "S01",
+      "time": "00:00-00:10.2",
+      "duration_seconds": 10.2,
+      "narration": "En GTA VI, el golpe que lo cambia todo no es solo el que sale mal… es tener que confiar en alguien cuando todo se viene abajo.",
+      "visual_direction": "Abrir con un plano nocturno urbano de alto contraste y movimiento hacia delante. Tipografía cinética original en dos golpes: «EL GOLPE» y después «ES CONFIAR». Evitar logos o interfaz de GTA.",
+      "asset": "media/scene-01.mp4",
+      "status": "ASSET_PENDING_REVIEW"
+    },
+    {
+      "id": "S02",
+      "time": "00:10.2-00:20.4",
+      "duration_seconds": 10.2,
+      "narration": "Rockstar sitúa a Jason y Lucía en Leonida. Un trabajo que parecía sencillo termina metiéndolos en una conspiración criminal que se extiende por todo el estado.",
+      "visual_direction": "Mapa editorial original inspirado en la geografía de Florida/Leonida, con líneas de ruta y puntos de luz. No recrear mapas oficiales ni afirmar que el metraje genérico representa el juego.",
+      "asset": "media/scene-02.mp4",
+      "status": "ASSET_PENDING_REVIEW"
+    },
+    {
+      "id": "S03",
+      "time": "00:20.4-00:30.6",
+      "duration_seconds": 10.2,
+      "narration": "La descripción oficial deja clara una cosa: los dos llevan tiempo jugando con las cartas en contra. Y ahora, para salir con vida, tendrán que depender el uno del otro más que nunca.",
+      "visual_direction": "Dos siluetas originales separadas por composición; cortes alternos de carretera nocturna y luces urbanas. No imitar rostros, vestuario ni escenas promocionales.",
+      "asset": "media/scene-03.mp4",
+      "status": "ASSET_PENDING_REVIEW"
+    },
+    {
+      "id": "S04",
+      "time": "00:30.6-00:40.8",
+      "duration_seconds": 10.2,
+      "narration": "Ahí está el verdadero gancho de su historia: no se trata solamente de cometer golpes, sino de descubrir cuánto puede resistir una alianza cuando cada decisión tiene consecuencias.",
+      "visual_direction": "Montaje ascendente: autopista, costa nocturna y luces de ciudad. Añadir una línea gráfica que se tense y se fracture al ritmo de la narración.",
+      "asset": "media/scene-04.mp4",
+      "status": "ASSET_PENDING_REVIEW"
+    },
+    {
+      "id": "S05",
+      "time": "00:40.8-00:51",
+      "duration_seconds": 10.2,
+      "narration": "¿Crees que Jason y Lucía podrán confiar el uno en el otro hasta el final? Te leo en los comentarios.",
+      "visual_direction": "Cerrar con dos siluetas en lados opuestos del encuadre y una pregunta grande, legible y centrada. Dejar respiración visual al final para CTA.",
+      "asset": "media/scene-05.mp4",
+      "status": "ASSET_PENDING_REVIEW"
+    }
+  ],
+  "source_note": "La sinopsis debe contrastarse con la página oficial de Rockstar antes de publicar. Los clips ambientales de terceros no son gameplay ni material oficial de GTA VI.",
+  "rights_gate": "No renderizar como versión publicable hasta que cada clip tenga origen, licencia, fecha de revisión y aprobación documentados.",
+  "approval_gate": "La publicación requiere aprobación humana independiente del render."
+}
