@@ -27,8 +27,17 @@ for a in assets:
     if not f or not (media/f).is_file(): raise SystemExit(f"Missing asset: {f}")
     if a.get("status")!="approved" or a.get("commercial_use") is not True:
         raise SystemExit(f"Asset not approved for commercial use: {f}")
-    if not a.get("source_url") or not a.get("license_url") or not a.get("reviewed_by"):
+    if a.get("releases_reviewed") is not True or a.get("trademarks_reviewed") is not True or a.get("reviewer_approved") is not True:
+        raise SystemExit(f"Human review incomplete: {f}")
+    if not a.get("source_url") or not a.get("license_url"):
         raise SystemExit(f"Missing rights evidence: {f}")
+voice=doc.get("voiceover", {})
+if voice.get("status")!="approved" or voice.get("rights_confirmed") is not True or voice.get("reviewer_approved") is not True:
+    raise SystemExit("Voiceover rights and human approval are required")
+music=doc.get("music", {})
+if (media/"music.wav").is_file():
+    if music.get("status")!="approved" or music.get("rights_confirmed") is not True or music.get("reviewer_approved") is not True:
+        raise SystemExit("Music rights and human approval are required")
 PY
 mapfile -t SCENES < <(find "$MEDIA" -maxdepth 1 -type f -name 'scene-*.mp4' | sort -V)
 (("${#SCENES[@]}" >= 1)) || { echo "No scene-*.mp4 files" >&2; exit 1; }
@@ -54,12 +63,12 @@ else
   AUDIO="[${AUDIO_INDEX}:a]aresample=48000,volume=1.0[aout]"
 fi
 ffmpeg -hide_banner -y "${INPUTS[@]}" -filter_complex "$FILTER;$AUDIO" \
-  -map '[vout]' -map '[aout]' -c:v libx264 -preset veryfast -crf 20 \
+  -map '[vout]' -map '[aout]' -shortest -c:v libx264 -preset veryfast -crf 20 \
   -pix_fmt yuv420p -c:a aac -b:a 192k -ar 48000 -movflags +faststart "$OUTPUT"
 
-if [[ -f "$MEDIA/captions.srt" ]]; then
+if [[ -f "$ROOT/captions.srt" ]]; then
   TEMP="${OUTPUT%.mp4}.captioned.mp4"
-  ffmpeg -hide_banner -y -i "$OUTPUT" -vf "subtitles=$MEDIA/captions.srt" \
+  ffmpeg -hide_banner -y -i "$OUTPUT" -vf "subtitles=$ROOT/captions.srt" \
     -c:v libx264 -preset veryfast -crf 20 -c:a copy -movflags +faststart "$TEMP"
   mv "$TEMP" "$OUTPUT"
 fi
