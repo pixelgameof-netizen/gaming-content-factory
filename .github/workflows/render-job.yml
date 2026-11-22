@@ -32,20 +32,18 @@ jobs:
       - name: Fetch approved assets and render
         env:
           JOB_ID: ${{ inputs.job_id }}
-          OIDC_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
-          OIDC_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
           SUPABASE_URL: https://pyrrcfegucvxyxlxzowu.supabase.co
         shell: bash
         run: |
           set -euo pipefail
           [[ "$JOB_ID" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "Invalid job UUID" >&2; exit 2; }
-          : "${OIDC_REQUEST_URL:?GitHub OIDC is unavailable}"
-          : "${OIDC_REQUEST_TOKEN:?GitHub OIDC request token is unavailable}"
+          : "${ACTIONS_ID_TOKEN_REQUEST_URL:?GitHub OIDC is unavailable}"
+          : "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:?GitHub OIDC request token is unavailable}"
 
           OIDC_RESPONSE="$(curl --fail --silent --show-error \
-            -H "Authorization: Bearer $OIDC_REQUEST_TOKEN" \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             --get --data-urlencode "audience=gcf-render-job-assets" \
-            "$OIDC_REQUEST_URL")"
+            "$ACTIONS_ID_TOKEN_REQUEST_URL")"
           OIDC_TOKEN="$(jq -er '.value' <<<"$OIDC_RESPONSE")"
           RESPONSE_FILE="$RUNNER_TEMP/gcf-render-assets.json"
           curl --fail --silent --show-error --request POST \
@@ -54,7 +52,7 @@ jobs:
             --data "$(jq -cn --arg id "$JOB_ID" '{job_id:$id}')" \
             "$SUPABASE_URL/functions/v1/gcf-render-job-assets" \
             --output "$RESPONSE_FILE"
-          unset OIDC_TOKEN OIDC_RESPONSE OIDC_REQUEST_TOKEN
+          unset OIDC_TOKEN OIDC_RESPONSE
 
           EPISODE="$JOB_ID"
           ROOT="production/$EPISODE"
