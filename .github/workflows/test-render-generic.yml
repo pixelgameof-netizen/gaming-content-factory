@@ -6,6 +6,8 @@ on:
     paths:
       - 'render/render_generic.sh'
       - 'supabase/functions/gcf-render-job-assets/**'
+      - 'supabase/migrations/**'
+      - '.github/workflows/render-job.yml'
       - '.github/workflows/test-render-generic.yml'
   workflow_dispatch:
 
