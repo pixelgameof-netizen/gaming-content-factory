@@ -1,0 +1,98 @@
+name: Render approved package from Supabase
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: Existing render_jobs UUID
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: gcf-render-job-${{ inputs.job_id }}
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install render tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg jq
+
+      - name: Fetch approved assets and render
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+          OIDC_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          OIDC_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+          SUPABASE_URL: https://pyrrcfegucvxyxlxzowu.supabase.co
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$JOB_ID" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "Invalid job UUID" >&2; exit 2; }
+          : "${OIDC_REQUEST_URL:?GitHub OIDC is unavailable}"
+          : "${OIDC_REQUEST_TOKEN:?GitHub OIDC request token is unavailable}"
+
+          OIDC_RESPONSE="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $OIDC_REQUEST_TOKEN" \
+            --get --data-urlencode "audience=gcf-render-job-assets" \
+            "$OIDC_REQUEST_URL")"
+          OIDC_TOKEN="$(jq -er '.value' <<<"$OIDC_RESPONSE")"
+          RESPONSE_FILE="$RUNNER_TEMP/gcf-render-assets.json"
+          curl --fail --silent --show-error --request POST \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$(jq -cn --arg id "$JOB_ID" '{job_id:$id}')" \
+            "$SUPABASE_URL/functions/v1/gcf-render-job-assets" \
+            --output "$RESPONSE_FILE"
+          unset OIDC_TOKEN OIDC_RESPONSE OIDC_REQUEST_TOKEN
+
+          EPISODE="$JOB_ID"
+          ROOT="production/$EPISODE"
+          MEDIA="$ROOT/media"
+          mkdir -p "$MEDIA" artifacts
+
+          while IFS= read -r asset; do
+            NAME="$(jq -er '.file_name' <<<"$asset")"
+            URL="$(jq -er '.url' <<<"$asset")"
+            EXPECTED="$(jq -er '.sha256' <<<"$asset")"
+            [[ "$NAME" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]] || { echo "Unsafe asset name" >&2; exit 1; }
+            TARGET="$MEDIA/$NAME"
+            curl --fail --silent --show-error --location "$URL" --output "$TARGET"
+            ACTUAL="$(sha256sum "$TARGET" | cut -d' ' -f1)"
+            [[ "$ACTUAL" == "$EXPECTED" ]] || { echo "SHA-256 mismatch for $NAME" >&2; exit 1; }
+          done < <(jq -c '.files[]' "$RESPONSE_FILE")
+
+          jq '{
+            assets: [.files[] | select(.role == "gameplay" or .role == "trailer") | ({file: .file_name} + .rights)],
+            voiceover: ([.files[] | select(.role == "voiceover") | .rights][0] // null),
+            music: ([.files[] | select(.role == "music") | .rights][0] // null)
+          }' "$RESPONSE_FILE" > "$ROOT/rights-review.json"
+
+          ASPECT="$(jq -er '.aspect_ratio' "$RESPONSE_FILE")"
+          case "$ASPECT" in
+            9:16) FORMAT=vertical ;;
+            16:9) FORMAT=horizontal ;;
+            *) echo "Unsupported aspect ratio" >&2; exit 1 ;;
+          esac
+          bash render/render_generic.sh "$EPISODE" "$FORMAT" "artifacts/$EPISODE.mp4"
+
+          echo "Rendered output hash:"
+          sha256sum "artifacts/$EPISODE.mp4"
+
+      - name: Upload review artifact (not publication)
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcf-review-${{ inputs.job_id }}
+          path: artifacts/${{ inputs.job_id }}.mp4*
+          retention-days: 1
+          if-no-files-found: error
