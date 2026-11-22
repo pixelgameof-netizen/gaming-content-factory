@@ -4,7 +4,7 @@ Status: engineering plan; not yet deployed. This document does not authorize a m
 
 ## Current verified state
 
-- Supabase has owner-scoped `content_packages`, `media_assets`, `rights_reviews`, `video_outputs`, `approvals`, and `publication_jobs`. The PR now stages (but does not apply) `supabase/migrations/202611220001_render_jobs.sql`, an owner-scoped render queue with constrained lifecycle states, package/output composite foreign keys, private owner-read RLS, and service-role-only writes.
+- Supabase has owner-scoped `content_packages`, `media_assets`, `rights_reviews`, `video_outputs`, `approvals`, and `publication_jobs`. The PR now stages (but does not apply) `supabase/migrations/202611220001_render_jobs.sql`, an owner-scoped render queue with constrained lifecycle states, package/output composite foreign keys, private owner-read RLS, and service-role-only writes. It includes `output_type` (`short`/`long_video`), destination platform (`youtube`, `youtube_shorts`, `tiktok`, `instagram_reels`, `facebook_reels`), aspect ratio, manifest, lifecycle, and eventual output reference.
 - `gcf-ingest-gameplay` authenticates the caller, restricts upstream downloads to Wikimedia's upload host, and stores ingested files privately as rights candidates.
 - `gcf-render-assets` is currently a legacy `short-01` implementation: fixed owner, fixed storage prefix, fixed filenames, and a gateway token. The live `rights_reviews.status` constraint allows `approved_by_owner` (not `approved`); `media_assets.rights_status` separately allows `approved`. Any dynamic rights gate must check both records and the publisher/game-policy, third-party-assets, and music booleans before creating a job.
 - `gcf-upload-media` is also fixed to `short-01` and a fixed allowlist.
@@ -88,7 +88,7 @@ It is intentionally separate from the live legacy `gcf-render-assets` function, 
 ### Request and response contract
 
 - Method: POST; authorization: server-side `GCF_RENDER_GATEWAY_TOKEN` bearer token.
-- Request body: `{ "job_id": "<render_jobs UUID>" }`.
+- Request body: `{ "job_id": "<render_jobs UUID>" }`. The response also carries the job's output type, destination platform, and aspect ratio.
 - The function reads the job from `render_jobs`, then resolves only assets whose owner and package match that job.
 - Manifest entries use `{ "asset_id": "<media_assets UUID>", "file_name": "scene-01.mp4" }`.
 - Accepted source roles: `gameplay`, `trailer`, exactly one `voiceover`, and optional `music`.
