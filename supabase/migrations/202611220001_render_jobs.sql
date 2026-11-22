@@ -23,7 +23,7 @@ create table if not exists public.render_jobs (
     references public.content_packages(id, owner_id) on delete cascade,
   constraint render_jobs_output_owner_fkey
     foreign key (output_id, owner_id)
-    references public.video_outputs(id, owner_id) on delete set null
+    references public.video_outputs(id, owner_id) on delete restrict
 );
 
 create index if not exists render_jobs_owner_created_idx
