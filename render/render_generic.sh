@@ -4,6 +4,7 @@ set -euo pipefail
 EPISODE="${1:?Usage: render_generic.sh <episode> <vertical|horizontal> [output.mp4]}"
 FORMAT="${2:?Format must be vertical or horizontal}"
 OUTPUT="${3:-artifacts/${EPISODE}.mp4}"
+[[ "$EPISODE" =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,49}$ ]] || { echo "Invalid episode name" >&2; exit 2; }
 ROOT="production/${EPISODE}"
 MEDIA="${ROOT}/media"
 RIGHTS="${ROOT}/rights-review.json"
@@ -31,6 +32,8 @@ for a in assets:
         raise SystemExit(f"Human review incomplete: {f}")
     if not a.get("source_url") or not a.get("license_url"):
         raise SystemExit(f"Missing rights evidence: {f}")
+unreviewed=scene_files-approved_files
+if unreviewed: raise SystemExit("Scene files missing explicit rights approval: "+", ".join(sorted(unreviewed)))
 voice=doc.get("voiceover", {})
 if voice.get("status")!="approved" or voice.get("rights_confirmed") is not True or voice.get("reviewer_approved") is not True:
     raise SystemExit("Voiceover rights and human approval are required")
