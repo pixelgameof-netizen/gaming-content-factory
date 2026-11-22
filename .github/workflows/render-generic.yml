@@ -1,0 +1,62 @@
+name: Generic production render
+
+on:
+  workflow_dispatch:
+    inputs:
+      episode:
+        description: Production folder under production/ (for example short-01)
+        required: true
+        type: string
+      format:
+        description: Output canvas
+        required: true
+        type: choice
+        options:
+          - vertical
+          - horizontal
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gcf-render-${{ inputs.episode }}
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate input
+        env:
+          EPISODE: ${{ inputs.episode }}
+        run: |
+          [[ "$EPISODE" =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,49}$ ]] || {
+            echo "Invalid episode name" >&2
+            exit 1
+          }
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Render
+        env:
+          EPISODE: ${{ inputs.episode }}
+          FORMAT: ${{ inputs.format }}
+        run: |
+          bash render/render_generic.sh "$EPISODE" "$FORMAT" "artifacts/$EPISODE.mp4"
+
+      - name: Upload private workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcf-${{ inputs.episode }}-${{ github.run_number }}
+          path: |
+            artifacts/${{ inputs.episode }}.mp4
+            artifacts/${{ inputs.episode }}.mp4.sha256
+          retention-days: 1
+          if-no-files-found: error
