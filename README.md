@@ -4,32 +4,40 @@ Infraestructura cloud para producir contenido gaming en formato vertical.
 
 ## Estado actual
 
-El repositorio contiene una primera prueba manual de renderizado con FFmpeg. **No contiene todavía el Short final de GTA VI ni material de terceros.**
+- Existe una prueba manual de renderizado FFmpeg de 12 segundos (gráficos originales; no es el Short).
+- Existe el paquete de preproducción del Short 01 de GTA VI: plan de cinco escenas, subtítulos provisionales, guía de derechos y script FFmpeg 1080x1920/30 fps.
+- **El Short final todavía no existe.** Faltan los cinco archivos de vídeo aprobados y la narración final.
+- Los tiempos de subtítulos son provisionales y deben ajustarse escuchando la voz definitiva.
 
 ## Seguridad y costes
 
-- El repositorio es público por decisión temporal del propietario: todo el código que se suba aquí puede ser visto por cualquiera.
+- El repositorio es público por decisión temporal del propietario: todo el código y texto editorial aquí subido puede ser visto por cualquiera.
 - No guardar claves API, tokens, contraseñas, claves de Supabase, datos personales ni archivos multimedia privados.
 - No hay publicación automática ni tareas programadas.
-- El render se inicia manualmente desde GitHub Actions.
-- La prueba usa gráficos originales generados por FFmpeg; no utiliza gameplay ni clips de GTA VI.
-- El artefacto de prueba se conserva durante un día.
-- El flujo no necesita credenciales de Supabase ni conecta servicios externos.
+- No se ha conectado ningún servicio externo nuevo para esta etapa.
+- No incluir gameplay, tráileres, música ni material promocional de GTA VI sin revisar y documentar los permisos correspondientes.
+- Los clips ambientales de terceros nunca deben presentarse como gameplay ni como material oficial de Rockstar.
+- La publicación requiere aprobación humana independiente del render.
 
-## Ejecutar la prueba de render
+## Prueba de render
 
-1. Abrir la pestaña **Actions** del repositorio.
+1. Abrir **Actions**.
 2. Elegir **Render preview (manual)**.
-3. Pulsar **Run workflow** y confirmar.
-4. Cuando termine, abrir la ejecución y descargar el artefacto `gaming-content-factory-preview`.
+3. Pulsar **Run workflow**.
+4. La prueba instala FFmpeg en un runner Ubuntu, genera 12 segundos a 720x1280/30 fps y valida el archivo.
 
-El flujo instala FFmpeg temporalmente en un runner Ubuntu, genera un MP4 de 12 segundos en 720x1280 a 30 fps y comprueba sus dimensiones con ffprobe.
+## Short 01 — paquete de producción
 
-## Próximas etapas
+Consulta `production/short-01/scene-plan.json` para el guion visual y el desglose de escenas. Los subtítulos provisionales están en `production/short-01/captions.srt`. La carpeta `production/short-01/media/` describe los archivos de entrada requeridos y el control de derechos.
 
-1. Verificar el MP4 de prueba.
-2. Incorporar medios con licencia y revisados individualmente.
-3. Añadir narración aprobada, subtítulos sincronizados y diseño sonoro.
-4. Renderizar el Short editorial de GTA VI y revisar calidad visual y de audio.
-5. Guardar el resultado final en el almacenamiento aprobado.
-6. Presentar el vídeo para aprobación humana. Publicar será una acción separada y requerirá autorización explícita.
+Cuando los cinco clips y la narración aprobados estén disponibles en esa carpeta, el script `render/render_short_01.sh` puede generar un MP4 vertical de 51 segundos:
+
+```bash
+bash render/render_short_01.sh production/short-01 short-01-preview.mp4
+```
+
+El script requiere FFmpeg y ffprobe. No inventa ni descarga recursos, y se detiene si faltan los archivos obligatorios. La música es opcional; si se usa, debe ser original o estar licenciada para el uso previsto.
+
+## Siguiente etapa
+
+Preparar una entrada privada de medios en la infraestructura cloud existente, verificar el acceso y los límites gratuitos, y conectar el render de GitHub Actions a esos archivos sin exponerlos en este repositorio público. Después: render, control de calidad y revisión humana. La publicación seguirá siendo una acción separada y requerirá autorización explícita.
