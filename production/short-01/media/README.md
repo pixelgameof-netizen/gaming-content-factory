@@ -16,6 +16,8 @@ Place five approved video files here:
 
 ## Rights checklist for every clip
 
+The machine-enforced approval record is `../rights-review.json`. The renderer refuses to proceed until every scene is marked `approved`, commercial use is confirmed, source and license URLs are recorded, releases and trademarks have been reviewed, and a reviewer has approved it. The voiceover must also be marked approved. Do not change these flags just to bypass the gate.
+
 Record the source URL, creator, download date, license applicable on that date, commercial-use permission, attribution requirement, model/property releases where relevant, visible trademarks, and reviewer approval. A platform-wide license statement is not a substitute for reviewing the individual asset and its restrictions.
 
 Do not label stock footage as GTA VI gameplay or official Rockstar footage. Do not download or include copyrighted game trailers, gameplay, music, or promotional assets unless their use is specifically cleared.
