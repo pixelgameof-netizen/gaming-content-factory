@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'render/render_generic.sh'
+      - 'supabase/functions/gcf-render-job-assets/**'
       - '.github/workflows/test-render-generic.yml'
   workflow_dispatch:
 
@@ -17,6 +18,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+      - name: Type-check dynamic render asset function
+        run: deno check supabase/functions/gcf-render-job-assets/index.ts
       - name: Install FFmpeg
         run: |
           sudo apt-get update
