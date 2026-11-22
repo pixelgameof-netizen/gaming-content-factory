@@ -1,5 +1,6 @@
 name: Test generic renderer with synthetic media
 
+# CI also exercises rejection of unreviewed scene files.
 on:
   push:
     paths:
