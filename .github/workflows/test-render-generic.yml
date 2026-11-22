@@ -64,6 +64,14 @@ jobs:
           PY
       - name: Render synthetic vertical test
         run: bash render/render_generic.sh renderer-test vertical artifacts/renderer-test.mp4
+      - name: Reject scene without rights approval
+        run: |
+          ffmpeg -hide_banner -loglevel error -f lavfi -i color=c=0x526070:s=360x640:d=1:r=24 -an -c:v libx264 -pix_fmt yuv420p production/renderer-test/media/scene-03.mp4
+          if bash render/render_generic.sh renderer-test vertical artifacts/should-not-exist.mp4; then
+            echo "Renderer accepted an unreviewed scene" >&2
+            exit 1
+          fi
+          test ! -e artifacts/should-not-exist.mp4
       - name: Assert output metadata
         run: |
           test -s artifacts/renderer-test.mp4
