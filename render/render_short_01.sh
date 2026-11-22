@@ -14,13 +14,13 @@ command -v jq >/dev/null 2>&1 || { echo "jq is required." >&2; exit 1; }
 RIGHTS="$ROOT/rights-review.json"
 [[ -s "$RIGHTS" ]] || { echo "Missing rights-review.json; refusing to render." >&2; exit 3; }
 for n in 01 02 03 04 05; do
-  jq -e --arg f "scene-$n.mp4" '.assets[] | select(.file == $f) | .status == "approved" and .commercial_use_confirmed == true and .reviewer_approved == true and (.source_url | type == "string" and length > 0) and (.license_url | type == "string" and length > 0)' "$RIGHTS" >/dev/null \\
+  jq -e --arg f "scene-$n.mp4" '.assets[] | select(.file == $f) | .status == "approved" and .commercial_use_confirmed == true and .releases_reviewed == true and .trademarks_reviewed == true and .reviewer_approved == true and (.source_url | type == "string" and length > 0) and (.license_url | type == "string" and length > 0)' "$RIGHTS" >/dev/null \
     || { echo "Rights review not approved for scene-$n.mp4; refusing to render." >&2; exit 3; }
 done
-jq -e '.voiceover.status == "approved" and .voiceover.rights_confirmed == true and .voiceover.reviewer_approved == true' "$RIGHTS" >/dev/null \\
+jq -e '.voiceover.status == "approved" and .voiceover.rights_confirmed == true and .voiceover.reviewer_approved == true' "$RIGHTS" >/dev/null \
   || { echo "Voiceover rights/approval incomplete; refusing to render." >&2; exit 3; }
 if [[ -s "$ROOT/media/music.wav" ]]; then
-  jq -e '.music.status == "approved" and .music.rights_confirmed == true and .music.reviewer_approved == true' "$RIGHTS" >/dev/null \\
+  jq -e '.music.status == "approved" and .music.rights_confirmed == true and .music.reviewer_approved == true' "$RIGHTS" >/dev/null \
     || { echo "Music rights/approval incomplete; refusing to render." >&2; exit 3; }
 fi
 
