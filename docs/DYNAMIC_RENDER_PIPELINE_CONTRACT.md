@@ -4,9 +4,9 @@ Status: engineering plan; not yet deployed. This document does not authorize a m
 
 ## Current verified state
 
-- Supabase has owner-scoped `content_packages`, `media_assets`, `rights_reviews`, `video_outputs`, `approvals`, and `publication_jobs`.
+- Supabase has owner-scoped `content_packages`, `media_assets`, `rights_reviews`, `video_outputs`, `approvals`, and `publication_jobs`. The PR now stages (but does not apply) `supabase/migrations/202611220001_render_jobs.sql`, an owner-scoped render queue with constrained lifecycle states, package/output composite foreign keys, private owner-read RLS, and service-role-only writes.
 - `gcf-ingest-gameplay` authenticates the caller, restricts upstream downloads to Wikimedia's upload host, and stores ingested files privately as rights candidates.
-- `gcf-render-assets` is currently a legacy `short-01` implementation: fixed owner, fixed storage prefix, fixed filenames, and a gateway token.
+- `gcf-render-assets` is currently a legacy `short-01` implementation: fixed owner, fixed storage prefix, fixed filenames, and a gateway token. The live `rights_reviews.status` constraint allows `approved_by_owner` (not `approved`); `media_assets.rights_status` separately allows `approved`. Any dynamic rights gate must check both records and the publisher/game-policy, third-party-assets, and music booleans before creating a job.
 - `gcf-upload-media` is also fixed to `short-01` and a fixed allowlist.
 - The generic FFmpeg renderer consumes local episode folders. Its current GitHub workflow only reads files committed to the repository and uploads a short-lived Actions artifact; it does not fetch from Supabase or persist the final MP4 there.
 - The latest renderer CI validates synthetic media and rights-gate rejection. It is not an end-to-end gameplay test.
@@ -72,7 +72,7 @@ If the secure credential exchange cannot be completed, stop the job rather than 
 
 ## Remaining implementation sequence
 
-1. Build dynamic job creation/status endpoints and owner-scoped manifest validation.
+1. Apply and review the staged `render_jobs` migration, then build dynamic job creation/status endpoints and owner-scoped manifest validation. The table is not deployed yet.
 2. Replace the fixed `short-01` fetch/upload functions with job-scoped, expiring hand-off endpoints.
 3. Update the generic workflow to fetch, verify, render, and upload dynamically.
 4. Wire the Floot UI to create jobs, show progress, preview private outputs, and collect hash-bound approval.
