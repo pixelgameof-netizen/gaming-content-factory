@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: render-preview
@@ -12,12 +12,14 @@ concurrency:
 
 jobs:
   render:
-    name: Build vertical preview
+    name: Build and publish preview file
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
 
       - name: Install FFmpeg
         run: |
@@ -35,10 +37,22 @@ jobs:
           test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 preview.mp4)" = "720"
           test "$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 preview.mp4)" = "1280"
 
-      - name: Upload preview
+      - name: Keep one-day downloadable artifact
         uses: actions/upload-artifact@v4
         with:
           name: gaming-content-factory-preview
           path: preview.mp4
           if-no-files-found: error
           retention-days: 1
+
+      - name: Save public browser-playable copy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p previews
+          cp preview.mp4 "previews/render-${GITHUB_RUN_ID}.mp4"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "previews/render-${GITHUB_RUN_ID}.mp4"
+          git commit -m "Add validated cloud render preview ${GITHUB_RUN_ID}"
+          git push
