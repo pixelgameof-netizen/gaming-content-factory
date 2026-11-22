@@ -1,0 +1,56 @@
+name: Render Short 01 (manual approval gate)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: short-01-render
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_FUNCTION_URL: https://pyrrcfegucvxyxlxzowu.supabase.co/functions/v1/gcf-render-assets
+      SUPABASE_RENDER_KEY: ${{ secrets.SUPABASE_RENDER_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install FFmpeg and jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg jq
+
+      - name: Enforce media and narration rights approval
+        run: |
+          for n in 01 02 03 04 05; do
+            jq -e --arg f "scene-$n.mp4" '.assets[] | select(.file == $f) | .status == "approved" and .commercial_use_confirmed == true and .releases_reviewed == true and .trademarks_reviewed == true and .reviewer_approved == true and (.source_url | type == "string" and length > 0) and (.license_url | type == "string" and length > 0)' production/short-01/rights-review.json >/dev/null
+          done
+          jq -e '.voiceover.status == "approved" and .voiceover.rights_confirmed == true and .voiceover.reviewer_approved == true' production/short-01/rights-review.json >/dev/null
+
+      - name: Fetch approved media through private signed URLs
+        run: |
+          chmod +x render/fetch_short_01_assets.sh
+          ./render/fetch_short_01_assets.sh production/short-01
+
+      - name: Render and validate vertical MP4
+        run: |
+          chmod +x render/render_short_01.sh
+          ./render/render_short_01.sh production/short-01 short-01-preview.mp4
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of csv=p=0 short-01-preview.mp4)" = "1080"
+          test "$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 short-01-preview.mp4)" = "1920"
+
+      - name: Upload private-run artifact (one day)
+        uses: actions/upload-artifact@v4
+        with:
+          name: gaming-content-factory-short-01
+          path: short-01-preview.mp4
+          if-no-files-found: error
+          retention-days: 1
