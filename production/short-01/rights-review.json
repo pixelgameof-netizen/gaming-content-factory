@@ -1,0 +1,24 @@
+{
+  "episode": "short-01",
+  "overall_status": "BLOCKED_PENDING_REVIEW",
+  "assets": [
+    {"file":"scene-01.mp4","status":"pending","source_url":null,"creator":null,"license_name":null,"license_url":null,"commercial_use_confirmed":false,"attribution_required":null,"releases_reviewed":false,"trademarks_reviewed":false,"reviewer_approved":false},
+    {"file":"scene-02.mp4","status":"pending","source_url":null,"creator":null,"license_name":null,"license_url":null,"commercial_use_confirmed":false,"attribution_required":null,"releases_reviewed":false,"trademarks_reviewed":false,"reviewer_approved":false},
+    {"file":"scene-03.mp4","status":"pending","source_url":null,"creator":null,"license_name":null,"license_url":null,"commercial_use_confirmed":false,"attribution_required":null,"releases_reviewed":false,"trademarks_reviewed":false,"reviewer_approved":false},
+    {"file":"scene-04.mp4","status":"pending","source_url":null,"creator":null,"license_name":null,"license_url":null,"commercial_use_confirmed":false,"attribution_required":null,"releases_reviewed":false,"trademarks_reviewed":false,"reviewer_approved":false},
+    {"file":"scene-05.mp4","status":"pending","source_url":null,"creator":null,"license_name":null,"license_url":null,"commercial_use_confirmed":false,"attribution_required":null,"releases_reviewed":false,"trademarks_reviewed":false,"reviewer_approved":false}
+  ],
+  "voiceover": {
+    "file":"voiceover.wav",
+    "status":"pending",
+    "rights_confirmed":false,
+    "reviewer_approved":false
+  },
+  "music": {
+    "file":"music.wav",
+    "required":false,
+    "status":"not_included",
+    "rights_confirmed":false,
+    "reviewer_approved":false
+  }
+}
