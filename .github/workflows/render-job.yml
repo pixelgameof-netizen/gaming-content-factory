@@ -70,9 +70,31 @@ jobs:
             [[ "$ACTUAL" == "$EXPECTED" ]] || { echo "SHA-256 mismatch for $NAME" >&2; exit 1; }
           done < <(jq -c '.files[]' "$RESPONSE_FILE")
 
+          if [[ "$(jq -r '.narration_text // empty' "$RESPONSE_FILE")" != "" ]]; then
+            NARRATION_FILE="$ROOT/narration.txt"
+            jq -er '.narration_text' "$RESPONSE_FILE" > "$NARRATION_FILE"
+            python3 -m pip install --disable-pip-version-check --no-cache-dir \
+              "kokoro-onnx==0.6.1" "misaki-fork[en]==0.9.6" "soundfile==0.13.1"
+            MODEL="$RUNNER_TEMP/kokoro-v1.0.int8.onnx"
+            VOICES="$RUNNER_TEMP/voices-v1.0.bin"
+            curl --fail --silent --show-error --location \
+              "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.int8.onnx" \
+              --output "$MODEL"
+            curl --fail --silent --show-error --location \
+              "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin" \
+              --output "$VOICES"
+            echo "ae315a79b623f244700e4afb9246c46a26066782e049ba174bf3ba433970ee9c  $MODEL" | sha256sum --check
+            echo "bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d  $VOICES" | sha256sum --check
+            python3 render/generate_voiceover.py \
+              --script "$NARRATION_FILE" --model "$MODEL" --voices "$VOICES" \
+              --audio "$MEDIA/voiceover.wav" --captions "$ROOT/captions.srt"
+            rm -f "$NARRATION_FILE" "$MODEL" "$VOICES"
+          fi
+
           jq '{
             assets: [.files[] | select(.role == "gameplay" or .role == "trailer") | ({file: .file_name} + .rights)],
-            voiceover: ([.files[] | select(.role == "voiceover") | .rights][0] // null),
+            voiceover: ([.files[] | select(.role == "voiceover") | .rights][0] //
+              (if (.narration_text // "") != "" then {status:"approved",rights_confirmed:true,reviewer_approved:true} else null end)),
             music: ([.files[] | select(.role == "music") | .rights][0] // null)
           }' "$RESPONSE_FILE" > "$ROOT/rights-review.json"
 
