@@ -80,7 +80,7 @@ returns table (id uuid)
 language plpgsql
 security invoker
 set search_path = ''
-as $
+as $$
 declare
   v_job_id uuid;
 begin
@@ -106,14 +106,14 @@ begin
 
   return query select v_job_id;
 end;
-$;
+$$;
 
 create or replace function public.gcf_claim_render_job(p_job_id uuid)
 returns table (id uuid)
 language plpgsql
 security invoker
 set search_path = ''
-as $
+as $$
 declare
   v_job_id uuid;
 begin
@@ -134,7 +134,7 @@ begin
 
   return query select v_job_id;
 end;
-$;
+$$;
 
 create or replace function public.gcf_prepare_render_job_upload(p_job_id uuid)
 returns table (
