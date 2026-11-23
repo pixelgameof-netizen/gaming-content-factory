@@ -11,7 +11,7 @@ Status: engineering plan; not yet deployed. This document does not authorize a m
 - The generic FFmpeg renderer consumes local episode folders. Its dynamic GitHub workflow fetches approved private assets using short-lived URLs, verifies their SHA-256 values, renders, runs media QC, uploads the MP4 to private Supabase Storage using a signed resumable TUS token, and asks a server-side finalizer to verify the stored bytes and register the output. A one-day GitHub review artifact remains as a temporary secondary copy.
 - `render/quality_check.py` now validates MP4 container readability, required H.264 video and AAC audio streams, target dimensions, 23–60 fps, duration (over 1 and at most 900 seconds), audio/video duration agreement, and a streaming SHA-256 digest. It writes a machine-readable QC report. The GitHub CI runs `45266441850` and `45267064405` passed on earlier intermediate revisions, including Deno type-checking, a positive synthetic render, and rejection of a silent MP4. The latest migration, TUS uploader, and unit-test edits have not yet been exercised by a fresh GitHub Actions run.
 - The output bucket is private and currently capped at 50 MiB; the QC gate enforces that cap. Long-form output above this size is blocked until a storage-limit change is reviewed.
-- Worker queue access uses restricted service-role-only RPCs, so the new queue table does not need to be exposed to the public Data API for worker handoff. The Floot UI now has owner rights-confirmation controls plus authenticated render-job creation and status listing through RPCs; those controls become active only after the staged migration is applied.
+- Worker queue access uses restricted service-role-only RPCs, so the new queue table does not need to be exposed to the public Data API for worker handoff. The Floot UI now has owner rights-confirmation controls, authenticated render-job creation/status, private output preview, and hash-bound approval/rejection through RPCs; those controls become active only after the staged migration is applied.
 - CI media is synthetic; it is not an end-to-end gameplay test.
 
 ## Target job contract
@@ -78,7 +78,7 @@ If the secure credential exchange cannot be completed, stop the job rather than 
 
 1. Complete the job creation/status endpoint and owner-scoped manifest validation, then review/apply the staged migration. The table is not deployed yet.
 2. Complete automated tests for the worker-only output upload/finalization path and verify the migration against a disposable database before deployment.
-3. Complete private output preview and hash-bound video approval UI; the staged Floot UI already creates jobs and lists their status through owner-scoped RPCs.
+3. Add an automated, secret-safe GitHub Actions dispatch from the app; the staged Floot UI already creates jobs, lists status, previews private outputs, and records exact-hash owner decisions.
 4. Add orphan cleanup and a controlled recovery path for failed uploads/finalization.
 5. Run end-to-end tests with real authorized gameplay and an approved voiceover.
 6. Review security findings and deployment settings; keep the existing draft PR unmerged until explicitly approved.
@@ -112,3 +112,11 @@ This source depends on the staged `render_jobs` migration. It must be type-check
 - `finalize` downloads the private object server-side, checks the byte count and SHA-256 against the QC report, and calls `gcf_finalize_render_job_output`.
 - The SQL RPC runs as `SECURITY INVOKER` and is executable only by `service_role`. In one database transaction it creates `video_outputs`, creates a pending `approvals` row bound to the output version and hash, and changes the job to `awaiting_owner`. A repeated identical finalization is idempotent.
 - Current bucket limit is 50 MiB. The QC helper blocks larger outputs. No real output has been uploaded and this code has not been deployed or executed against the live project.
+
+
+## Owner approval UI (staged, not deployed)
+
+- `gcf_list_pending_approvals` returns only pending outputs owned by the authenticated user and optionally filtered to a package.
+- `gcf_decide_render_output` locks the approval/output rows and requires exact approval ID, output ID, SHA-256, version, platform, passed QC, and owner-scoped private storage path before recording `approved` or `rejected`.
+- The Floot approvals page requests a 10-minute signed URL from private Storage for preview, then submits the explicit decision through the RPC. It never publishes or schedules.
+- The signed preview URL remains in page memory only and expires after ten minutes.
