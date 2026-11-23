@@ -94,6 +94,56 @@ jobs:
             --aspect "$ASPECT" --report "artifacts/$JOB_ID.qc.json"
           sha256sum "artifacts/$JOB_ID.mp4" > "artifacts/$JOB_ID.mp4.sha256"
 
+      - name: Upload and register private output
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+          SUPABASE_URL: https://pyrrcfegucvxyxlxzowu.supabase.co
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ACTIONS_ID_TOKEN_REQUEST_URL:?GitHub OIDC is unavailable}"
+          : "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:?GitHub OIDC request token is unavailable}"
+
+          OIDC_RESPONSE="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            --get --data-urlencode "audience=gcf-render-job-output" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL")"
+          OIDC_TOKEN="$(jq -er '.value' <<<"$OIDC_RESPONSE")"
+          PREPARE_FILE="$RUNNER_TEMP/gcf-output-upload.json"
+          curl --fail --silent --show-error --request POST \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$(jq -cn --arg id "$JOB_ID" '{action:"prepare_upload",job_id:$id}')" \
+            "$SUPABASE_URL/functions/v1/gcf-render-job-output" \
+            --output "$PREPARE_FILE"
+          unset OIDC_TOKEN OIDC_RESPONSE
+
+          STORAGE_PATH="$(jq -er '.storage_path' "$PREPARE_FILE")"
+          UPLOAD_TOKEN="$(jq -er '.upload_token' "$PREPARE_FILE")"
+          SUPABASE_UPLOAD_TOKEN="$UPLOAD_TOKEN" python3 render/upload_supabase_tus.py \
+            --file "artifacts/$JOB_ID.mp4" \
+            --path "$STORAGE_PATH" \
+            --project-ref pyrrcfegucvxyxlxzowu
+          unset UPLOAD_TOKEN SUPABASE_UPLOAD_TOKEN
+
+          jq -n --arg id "$JOB_ID" --arg path "$STORAGE_PATH" \
+            --slurpfile qc "artifacts/$JOB_ID.qc.json" \
+            '{action:"finalize",job_id:$id,storage_path:$path,qc_report:$qc[0]}' \
+            > "$RUNNER_TEMP/gcf-output-finalize.json"
+
+          OIDC_RESPONSE="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            --get --data-urlencode "audience=gcf-render-job-output" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL")"
+          OIDC_TOKEN="$(jq -er '.value' <<<"$OIDC_RESPONSE")"
+          curl --fail --silent --show-error --request POST \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @"$RUNNER_TEMP/gcf-output-finalize.json" \
+            "$SUPABASE_URL/functions/v1/gcf-render-job-output" \
+            --output "artifacts/$JOB_ID.registration.json"
+          unset OIDC_TOKEN OIDC_RESPONSE ACTIONS_ID_TOKEN_REQUEST_TOKEN
+
       - name: Upload review artifact (not publication)
         uses: actions/upload-artifact@v4
         with:
