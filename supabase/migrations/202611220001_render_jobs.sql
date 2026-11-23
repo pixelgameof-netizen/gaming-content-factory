@@ -86,12 +86,12 @@ declare
 begin
   select j.id into v_job_id
     from public.render_jobs as j
-   where j.status = 'queued'
+   where (j.status = 'queued' or (j.status = 'preparing' and j.started_at < now() - interval '30 minutes'))
      and (j.expires_at is null or j.expires_at > now())
      and j.attempt_count < 3
    order by j.created_at asc
-   for update skip locked
-   limit 1;
+   limit 1
+   for update skip locked;
 
   if not found then
     return;
