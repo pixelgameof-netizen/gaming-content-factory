@@ -353,8 +353,8 @@ begin
          or (v_review.expires_at is not null and v_review.expires_at <= now()) then
         raise exception 'latest rights review is not owner-approved for this asset';
       end if;
-      if v_role = 'music' and v_review.music_rights_verified is not true then
-        raise exception 'music rights have not been verified';
+      if v_role in ('gameplay','trailer','music') and v_review.music_rights_verified is not true then
+        raise exception 'music rights or absence of music have not been verified';
       end if;
     end if;
   end loop;
