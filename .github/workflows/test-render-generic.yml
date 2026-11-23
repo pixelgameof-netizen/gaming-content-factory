@@ -16,7 +16,9 @@ on:
     paths:
       - 'render/render_generic.sh'
       - 'render/quality_check.py'
+      - 'render/upload_supabase_tus.py'
       - 'supabase/functions/gcf-render-job-assets/**'
+      - 'supabase/functions/gcf-render-job-output/**'
       - 'supabase/migrations/**'
       - '.github/workflows/render-job.yml'
       - '.github/workflows/test-render-generic.yml'
