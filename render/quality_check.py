@@ -33,6 +33,8 @@ def main() -> None:
     size = path.stat().st_size
     if size < 1024:
         fail("output file is empty or implausibly small")
+    if size > 50 * 1024 * 1024:
+        fail("output exceeds the private Storage bucket limit of 50 MiB")
 
     probe = subprocess.run(
         ["ffprobe", "-v", "error", "-show_format", "-show_streams", "-of", "json", str(path)],
