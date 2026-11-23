@@ -69,7 +69,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Unsupported output aspect ratio" }, 422);
   }
 
-  const manifest = job.manifest as { assets?: unknown };
+  const manifest = job.manifest as { assets?: unknown; narration_text?: unknown };
   if (!manifest || !Array.isArray(manifest.assets) || manifest.assets.length < 2 || manifest.assets.length > 20) {
     return json({ error: "Manifest must contain between 2 and 20 assets" }, 422);
   }
