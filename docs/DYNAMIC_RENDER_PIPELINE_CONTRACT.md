@@ -137,3 +137,11 @@ This source depends on the staged `render_jobs` migration. It must be type-check
 - For scheduled runs, the OIDC-authenticated asset function calls `gcf_claim_next_render_job()`, which uses `FOR UPDATE SKIP LOCKED` to atomically claim one unexpired queued job and move it to `preparing`. Manual dispatches use `gcf_claim_render_job(job_id)` so the same job cannot be claimed by both paths.
 - Stale `preparing` jobs older than 30 minutes can be reclaimed, up to three attempts. Jobs already in `uploading` are not auto-reclaimed; interrupted upload recovery and orphan cleanup remain pending.
 - No GitHub PAT, Actions dispatch secret, or third-party scheduler is needed. The scheduled worker becomes active only after the workflow is merged to the default branch and the SQL migration plus Edge Function are deployed.
+
+
+## Owner-captured gameplay ingestion
+
+- The Floot research page accepts an MP4 up to 40 MiB directly from a phone or desktop browser and uploads it to the private `gcf-source-media` bucket using the authenticated owner's folder.
+- The browser calculates SHA-256 before registration and creates an owner-scoped source, package link, and `media_assets` record with `rights_status='candidate'`.
+- The upload is not automatically cleared for use. The owner must complete the same publisher policy, commercial-use, derivative, redistribution, third-party, and music review as any other gameplay source.
+- No public bucket, external upload service, or local folder workflow is introduced.
