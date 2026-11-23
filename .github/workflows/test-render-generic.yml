@@ -59,8 +59,9 @@ jobs:
           test -s "$RUNNER_TEMP/voiceover-test.wav"
           test -s "$RUNNER_TEMP/voiceover-test.srt"
           python3 - <<'PY'
+          import os
           import soundfile as sf
-          info = sf.info("$RUNNER_TEMP/voiceover-test.wav")
+          info = sf.info(os.path.join(os.environ["RUNNER_TEMP"], "voiceover-test.wav"))
           assert info.samplerate == 24000 and info.channels == 1
           PY
       - name: Install FFmpeg
