@@ -4,7 +4,7 @@ import argparse
 import base64
 import os
 import pathlib
-import sys
+import re
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlparse
@@ -12,6 +12,10 @@ from urllib.request import Request, urlopen
 
 CHUNK_BYTES = 6 * 1024 * 1024
 MAX_BYTES = 50 * 1024 * 1024
+JOB_PATH_RE = re.compile(
+    r"^[0-9a-f-]{36}/[0-9a-f-]{36}/render-jobs/[0-9a-f-]{36}/[0-9a-f-]{36}\.mp4$",
+    re.IGNORECASE,
+)
 
 
 def request(url: str, method: str, headers: dict[str, str], data: bytes | None = None):
@@ -37,8 +41,8 @@ def main() -> None:
         raise SystemExit(f"Output size must be between 1 KiB and {MAX_BYTES} bytes")
     if args.bucket != "gcf-video-outputs":
         raise SystemExit("Only the private gcf-video-outputs bucket is allowed")
-    if not args.path.endswith(".mp4") or ".." in args.path.split("/"):
-        raise SystemExit("Unsafe output storage path")
+    if not JOB_PATH_RE.fullmatch(args.path):
+        raise SystemExit("Output storage path is not a valid owner/package/job MP4 path")
     if not args.project_ref.isalnum() or len(args.project_ref) < 10:
         raise SystemExit("Invalid Supabase project reference")
 
@@ -75,6 +79,7 @@ def main() -> None:
         raise SystemExit("Supabase returned an unexpected TUS upload host")
 
     offset = 0
+    retries = 0
     with args.file.open("rb") as source:
         while offset < size:
             source.seek(offset)
@@ -93,9 +98,15 @@ def main() -> None:
                     next_offset = response.headers.get("Upload-Offset")
                     if next_offset is None:
                         raise SystemExit("Supabase TUS response omitted Upload-Offset")
-                    offset = int(next_offset)
+                    next_offset = int(next_offset)
+                    if next_offset <= offset or next_offset > size:
+                        raise SystemExit("Supabase returned an invalid TUS upload offset")
+                    offset = next_offset
+                    retries = 0
             except (HTTPError, URLError):
-                # Resume from the server's committed offset after a transient failure.
+                retries += 1
+                if retries > 4:
+                    raise SystemExit("Supabase TUS upload failed after four resume attempts")
                 try:
                     with request(upload_url, "HEAD", common_headers) as response:
                         server_offset = response.headers.get("Upload-Offset")
@@ -107,7 +118,7 @@ def main() -> None:
                         raise SystemExit("Supabase returned an invalid upload offset")
                 except (HTTPError, URLError, ValueError) as exc:
                     raise SystemExit("Supabase TUS upload failed and could not be resumed") from exc
-                time.sleep(1)
+                time.sleep(min(retries, 3))
 
     if offset != size:
         raise SystemExit("Supabase TUS upload did not complete")
