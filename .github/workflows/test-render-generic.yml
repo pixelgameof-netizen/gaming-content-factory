@@ -1,10 +1,11 @@
 name: Test generic renderer with synthetic media
 
-# CI also exercises rejection of unreviewed scene files.
+# CI also exercises rejection of unreviewed scene files and invalid MP4 outputs.
 on:
   push:
     paths:
       - 'render/render_generic.sh'
+      - 'render/quality_check.py'
       - 'supabase/functions/gcf-render-job-assets/**'
       - 'supabase/migrations/**'
       - '.github/workflows/render-job.yml'
@@ -29,10 +30,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
       - name: Syntax check
-        run: bash -n render/render_generic.sh
+        run: |
+          bash -n render/render_generic.sh
+          python3 -m py_compile render/quality_check.py
       - name: Generate synthetic test inputs
         run: |
-          mkdir -p production/renderer-test/media
+          mkdir -p production/renderer-test/media artifacts
           ffmpeg -hide_banner -loglevel error -f lavfi -i color=c=0x18243a:s=360x640:d=2:r=24 -an -c:v libx264 -pix_fmt yuv420p production/renderer-test/media/scene-01.mp4
           ffmpeg -hide_banner -loglevel error -f lavfi -i color=c=0x324a62:s=360x640:d=2:r=24 -an -c:v libx264 -pix_fmt yuv420p production/renderer-test/media/scene-02.mp4
           ffmpeg -hide_banner -loglevel error -f lavfi -i sine=frequency=440:duration=4 -c:a pcm_s16le production/renderer-test/media/voiceover.wav
@@ -72,6 +75,25 @@ jobs:
           PY
       - name: Render synthetic vertical test
         run: bash render/render_generic.sh renderer-test vertical artifacts/renderer-test.mp4
+      - name: Run positive quality gate
+        run: |
+          python3 render/quality_check.py artifacts/renderer-test.mp4 --aspect 9:16 --report artifacts/renderer-test.qc.json
+          python3 - <<'PY'
+          import json
+          report=json.load(open("artifacts/renderer-test.qc.json"))
+          assert report["status"] == "passed"
+          assert len(report["sha256"]) == 64
+          assert report["width"] == 1080 and report["height"] == 1920
+          assert "audio_video_sync" in report["checks"]
+          PY
+      - name: Reject output without audio
+        run: |
+          ffmpeg -hide_banner -loglevel error -f lavfi -i color=c=0x526070:s=1080x1920:d=2:r=30 -an -c:v libx264 -pix_fmt yuv420p artifacts/silent.mp4
+          if python3 render/quality_check.py artifacts/silent.mp4 --aspect 9:16 --report artifacts/silent.qc.json; then
+            echo "Quality gate accepted output without audio" >&2
+            exit 1
+          fi
+          test ! -e artifacts/silent.qc.json
       - name: Reject scene without rights approval
         run: |
           ffmpeg -hide_banner -loglevel error -f lavfi -i color=c=0x526070:s=360x640:d=1:r=24 -an -c:v libx264 -pix_fmt yuv420p production/renderer-test/media/scene-03.mp4
@@ -84,9 +106,10 @@ jobs:
         run: |
           test -s artifacts/renderer-test.mp4
           test -s artifacts/renderer-test.mp4.sha256
+          test -s artifacts/renderer-test.qc.json
           test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 artifacts/renderer-test.mp4)" = "1080x1920"
       - uses: actions/upload-artifact@v4
         with:
           name: renderer-synthetic-test
-          path: artifacts/renderer-test.mp4*
+          path: artifacts/renderer-test.*
           retention-days: 1
