@@ -11,7 +11,7 @@ Status: engineering plan; not yet deployed. This document does not authorize a m
 - The generic FFmpeg renderer consumes local episode folders. Its dynamic GitHub workflow fetches approved private assets using short-lived URLs, verifies their SHA-256 values, renders, runs media QC, uploads the MP4 to private Supabase Storage using a signed resumable TUS token, and asks a server-side finalizer to verify the stored bytes and register the output. A one-day GitHub review artifact remains as a temporary secondary copy.
 - `render/quality_check.py` now validates MP4 container readability, required H.264 video and AAC audio streams, target dimensions, 23–60 fps, duration (over 1 and at most 900 seconds), audio/video duration agreement, and a streaming SHA-256 digest. It writes a machine-readable QC report. The GitHub CI runs `45266441850` and `45267064405` passed on earlier intermediate revisions, including Deno type-checking, a positive synthetic render, and rejection of a silent MP4. The latest migration, TUS uploader, and unit-test edits have not yet been exercised by a fresh GitHub Actions run.
 - The output bucket is private and currently capped at 50 MiB; the QC gate enforces that cap. Long-form output above this size is blocked until a storage-limit change is reviewed.
-- Worker queue access uses restricted service-role-only RPCs, so the new queue table does not need to be exposed to the public Data API for worker handoff. Authenticated app-side job creation/status UI is still pending.
+- Worker queue access uses restricted service-role-only RPCs, so the new queue table does not need to be exposed to the public Data API for worker handoff. The Floot UI now has owner rights-confirmation controls plus authenticated render-job creation and status listing through RPCs; those controls become active only after the staged migration is applied.
 - CI media is synthetic; it is not an end-to-end gameplay test.
 
 ## Target job contract
@@ -78,7 +78,7 @@ If the secure credential exchange cannot be completed, stop the job rather than 
 
 1. Complete the job creation/status endpoint and owner-scoped manifest validation, then review/apply the staged migration. The table is not deployed yet.
 2. Complete automated tests for the worker-only output upload/finalization path and verify the migration against a disposable database before deployment.
-3. Add authenticated app-side RPCs/UI to create render jobs, show progress, preview private outputs, and collect hash-bound approval.
+3. Complete private output preview and hash-bound video approval UI; the staged Floot UI already creates jobs and lists their status through owner-scoped RPCs.
 4. Add orphan cleanup and a controlled recovery path for failed uploads/finalization.
 5. Run end-to-end tests with real authorized gameplay and an approved voiceover.
 6. Review security findings and deployment settings; keep the existing draft PR unmerged until explicitly approved.
@@ -94,8 +94,8 @@ A new Edge Function source file is staged at `supabase/functions/gcf-render-job-
 - The function reads the job from `render_jobs`, then resolves only assets whose owner and package match that job.
 - Manifest entries use `{ "asset_id": "<media_assets UUID>", "file_name": "scene-01.mp4" }`.
 - Accepted source roles: `gameplay`, `trailer`, exactly one `voiceover`, and optional `music`.
-- Gameplay/trailer assets must be approved MP4s; voiceover and music must be WAV files.
-- Every source-backed gameplay/trailer/music asset (and any source-backed voiceover) must have `media_assets.rights_status='approved'` and the latest matching `rights_reviews` row must be `approved_by_owner`, with commercial use, derivatives, redistribution, game-policy and third-party checks, owner review evidence, and a non-expired license. Music additionally requires `music_rights_verified=true`.
+- Gameplay/trailer assets must be approved MP4s; voiceover and music must be WAV files. The latest owner-approved review must also confirm that music is absent or cleared for gameplay/trailer assets, not only separate music tracks.
+- Every source-backed gameplay/trailer/music asset (and any source-backed voiceover) must have `media_assets.rights_status='approved'` and the latest matching `rights_reviews` row must be `approved_by_owner`, with commercial use, derivatives, redistribution, game-policy, third-party and music/absence-of-music checks, owner review evidence, and a non-expired license.
 - Only private `gcf-source-media` objects beneath the job owner's storage prefix are signed. Every asset must carry a valid SHA-256. URLs expire after 10 minutes. Responses are no-store. The function evaluates the most recent review per source and returns the rights evidence required by the FFmpeg renderer.
 - The function does not publish, mutate approval state, or mark a render job complete. `.github/workflows/render-job.yml` stages a manual OIDC-protected workflow that fetches the signed assets, verifies SHA-256, builds the renderer rights manifest, renders, runs `render/quality_check.py`, and produces a one-day review artifact. It does not yet upload the final MP4 to Supabase.
 
