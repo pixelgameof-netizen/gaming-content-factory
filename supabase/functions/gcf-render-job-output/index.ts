@@ -142,11 +142,13 @@ Deno.serve(async (req: Request) => {
   if (downloadError || !object) return json({ error: "Rendered MP4 is not present in private Storage" }, 404);
   const bytes = new Uint8Array(await object.arrayBuffer());
   if (bytes.byteLength !== Number(qc.size_bytes) || bytes.byteLength > MAX_OUTPUT_BYTES) {
+    if (job.status === "uploading") await admin.storage.from(BUCKET).remove([body.storage_path]);
     return json({ error: "Stored output size does not match the QC report or exceeds the bucket limit" }, 422);
   }
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   const actualHash = Array.from(new Uint8Array(digest)).map((value) => value.toString(16).padStart(2, "0")).join("");
   if (actualHash !== String(qc.sha256).toLowerCase()) {
+    if (job.status === "uploading") await admin.storage.from(BUCKET).remove([body.storage_path]);
     return json({ error: "Stored MP4 SHA-256 does not match the QC report" }, 422);
   }
 
