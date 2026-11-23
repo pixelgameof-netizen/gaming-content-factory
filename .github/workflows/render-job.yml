@@ -1,0 +1,198 @@
+name: Render approved package from Supabase
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: Existing render_jobs UUID (leave blank to claim the next queued job)
+        required: false
+        type: string
+  schedule:
+    - cron: "*/10 * * * *"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: gcf-render-job-${{ inputs.job_id || 'scheduled-queue' }}
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install render tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg jq
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Claim job and fetch approved assets
+        id: prepare
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+          SUPABASE_URL: https://pyrrcfegucvxyxlxzowu.supabase.co
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ACTIONS_ID_TOKEN_REQUEST_URL:?GitHub OIDC is unavailable}"
+          : "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:?GitHub OIDC request token is unavailable}"
+
+          OIDC_RESPONSE="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            --get --data-urlencode "audience=gcf-render-job-assets" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL")"
+          OIDC_TOKEN="$(jq -er '.value' <<<"$OIDC_RESPONSE")"
+          RESPONSE_FILE="$RUNNER_TEMP/gcf-render-assets.json"
+          if [[ -n "$JOB_ID" ]]; then
+            [[ "$JOB_ID" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "Invalid job UUID" >&2; exit 2; }
+            REQUEST_BODY="$(jq -cn --arg id "$JOB_ID" '{job_id:$id}')"
+          else
+            REQUEST_BODY='{"action":"claim_next"}'
+          fi
+          curl --fail --silent --show-error --request POST \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$REQUEST_BODY" \
+            "$SUPABASE_URL/functions/v1/gcf-render-job-assets" \
+            --output "$RESPONSE_FILE"
+          unset OIDC_TOKEN OIDC_RESPONSE REQUEST_BODY
+          if [[ "$(jq -r '.empty // false' "$RESPONSE_FILE")" == "true" ]]; then
+            echo "No queued render jobs."
+            echo "job_id=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          JOB_ID="$(jq -er '.job_id' "$RESPONSE_FILE")"
+          [[ "$JOB_ID" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "Worker returned an invalid job UUID" >&2; exit 2; }
+          echo "job_id=$JOB_ID" >> "$GITHUB_OUTPUT"
+
+          EPISODE="$JOB_ID"
+          ROOT="production/$EPISODE"
+          MEDIA="$ROOT/media"
+          mkdir -p "$MEDIA" artifacts
+
+          while IFS= read -r asset; do
+            NAME="$(jq -er '.file_name' <<<"$asset")"
+            URL="$(jq -er '.url' <<<"$asset")"
+            EXPECTED="$(jq -er '.sha256' <<<"$asset")"
+            [[ "$NAME" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]] || { echo "Unsafe asset name" >&2; exit 1; }
+            TARGET="$MEDIA/$NAME"
+            curl --fail --silent --show-error --location "$URL" --output "$TARGET"
+            ACTUAL="$(sha256sum "$TARGET" | cut -d' ' -f1)"
+            [[ "$ACTUAL" == "$EXPECTED" ]] || { echo "SHA-256 mismatch for $NAME" >&2; exit 1; }
+          done < <(jq -c '.files[]' "$RESPONSE_FILE")
+
+          if [[ "$(jq -r '.narration_text // empty' "$RESPONSE_FILE")" != "" ]]; then
+            NARRATION_FILE="$ROOT/narration.txt"
+            jq -er '.narration_text' "$RESPONSE_FILE" > "$NARRATION_FILE"
+            python3 -m pip install --disable-pip-version-check --no-cache-dir \
+              "kokoro-onnx==0.6.1" "misaki-fork[en]==0.9.6" "soundfile==0.13.1"
+            MODEL="$RUNNER_TEMP/kokoro-v1.0.int8.onnx"
+            VOICES="$RUNNER_TEMP/voices-v1.0.bin"
+            curl --fail --silent --show-error --location \
+              "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/kokoro-v1.0.int8.onnx" \
+              --output "$MODEL"
+            curl --fail --silent --show-error --location \
+              "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.1/voices-v1.0.bin" \
+              --output "$VOICES"
+            echo "ae315a79b623f244700e4afb9246c46a26066782e049ba174bf3ba433970ee9c  $MODEL" | sha256sum --check
+            echo "bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d  $VOICES" | sha256sum --check
+            python3 render/generate_voiceover.py \
+              --script "$NARRATION_FILE" --model "$MODEL" --voices "$VOICES" \
+              --audio "$MEDIA/voiceover.wav" --captions "$ROOT/captions.srt"
+            rm -f "$NARRATION_FILE" "$MODEL" "$VOICES"
+          fi
+
+          jq '{
+            assets: [.files[] | select(.role == "gameplay" or .role == "trailer") | ({file: .file_name} + .rights)],
+            voiceover: ([.files[] | select(.role == "voiceover") | .rights][0] //
+              (if (.narration_text // "") != "" then {status:"approved",rights_confirmed:true,reviewer_approved:true} else null end)),
+            music: ([.files[] | select(.role == "music") | .rights][0] // null)
+          }' "$RESPONSE_FILE" > "$ROOT/rights-review.json"
+
+          ASPECT="$(jq -er '.aspect_ratio' "$RESPONSE_FILE")"
+          case "$ASPECT" in
+            9:16) FORMAT=vertical ;;
+            16:9) FORMAT=horizontal ;;
+            *) echo "Unsupported aspect ratio" >&2; exit 1 ;;
+          esac
+          bash render/render_generic.sh "$EPISODE" "$FORMAT" "artifacts/$EPISODE.mp4"
+
+      - name: Run media quality gate
+        if: steps.prepare.outputs.job_id != ''
+        env:
+          JOB_ID: ${{ steps.prepare.outputs.job_id }}
+        run: |
+          set -euo pipefail
+          ASPECT="$(jq -er '.aspect_ratio' "$RUNNER_TEMP/gcf-render-assets.json")"
+          python3 render/quality_check.py "artifacts/$JOB_ID.mp4" \
+            --aspect "$ASPECT" --report "artifacts/$JOB_ID.qc.json"
+          sha256sum "artifacts/$JOB_ID.mp4" > "artifacts/$JOB_ID.mp4.sha256"
+
+      - name: Upload and register private output
+        if: steps.prepare.outputs.job_id != ''
+        env:
+          JOB_ID: ${{ steps.prepare.outputs.job_id }}
+          SUPABASE_URL: https://pyrrcfegucvxyxlxzowu.supabase.co
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ACTIONS_ID_TOKEN_REQUEST_URL:?GitHub OIDC is unavailable}"
+          : "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:?GitHub OIDC request token is unavailable}"
+
+          OIDC_RESPONSE="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            --get --data-urlencode "audience=gcf-render-job-output" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL")"
+          OIDC_TOKEN="$(jq -er '.value' <<<"$OIDC_RESPONSE")"
+          PREPARE_FILE="$RUNNER_TEMP/gcf-output-upload.json"
+          curl --fail --silent --show-error --request POST \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$(jq -cn --arg id "$JOB_ID" '{action:"prepare_upload",job_id:$id}')" \
+            "$SUPABASE_URL/functions/v1/gcf-render-job-output" \
+            --output "$PREPARE_FILE"
+          unset OIDC_TOKEN OIDC_RESPONSE
+
+          STORAGE_PATH="$(jq -er '.storage_path' "$PREPARE_FILE")"
+          UPLOAD_TOKEN="$(jq -er '.upload_token' "$PREPARE_FILE")"
+          SUPABASE_UPLOAD_TOKEN="$UPLOAD_TOKEN" python3 render/upload_supabase_tus.py \
+            --file "artifacts/$JOB_ID.mp4" \
+            --path "$STORAGE_PATH" \
+            --project-ref pyrrcfegucvxyxlxzowu
+          unset UPLOAD_TOKEN SUPABASE_UPLOAD_TOKEN
+
+          jq -n --arg id "$JOB_ID" --arg path "$STORAGE_PATH" \
+            --slurpfile qc "artifacts/$JOB_ID.qc.json" \
+            '{action:"finalize",job_id:$id,storage_path:$path,qc_report:$qc[0]}' \
+            > "$RUNNER_TEMP/gcf-output-finalize.json"
+
+          OIDC_RESPONSE="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            --get --data-urlencode "audience=gcf-render-job-output" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL")"
+          OIDC_TOKEN="$(jq -er '.value' <<<"$OIDC_RESPONSE")"
+          curl --fail --silent --show-error --request POST \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @"$RUNNER_TEMP/gcf-output-finalize.json" \
+            "$SUPABASE_URL/functions/v1/gcf-render-job-output" \
+            --output "artifacts/$JOB_ID.registration.json"
+          unset OIDC_TOKEN OIDC_RESPONSE ACTIONS_ID_TOKEN_REQUEST_TOKEN
+
+      - name: Upload review artifact (not publication)
+        if: steps.prepare.outputs.job_id != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcf-review-${{ steps.prepare.outputs.job_id }}
+          path: artifacts/${{ steps.prepare.outputs.job_id }}.*
+          retention-days: 1
+          if-no-files-found: error
