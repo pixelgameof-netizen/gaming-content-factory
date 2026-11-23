@@ -57,7 +57,13 @@ Deno.serve(async (req: Request) => {
     if (!claimed?.id) return json({ empty: true });
     jobId = claimed.id;
   } else if (typeof body.job_id === "string" && UUID_RE.test(body.job_id) && body.action === undefined) {
-    jobId = body.job_id;
+    const { data: claimedRows, error: claimError } = await admin.rpc("gcf_claim_render_job", {
+      p_job_id: body.job_id,
+    });
+    if (claimError) return json({ error: "Unable to claim the requested render job" }, 500);
+    const claimed = Array.isArray(claimedRows) ? claimedRows[0] : claimedRows;
+    if (!claimed?.id) return json({ error: "Render job is already claimed, expired, or unavailable" }, 409);
+    jobId = claimed.id;
   } else {
     return json({ error: "Provide a valid job_id or action: claim_next" }, 400);
   }
