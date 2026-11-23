@@ -4,12 +4,13 @@ Status: engineering plan; not yet deployed. This document does not authorize a m
 
 ## Current verified state
 
-- Supabase has owner-scoped `content_packages`, `media_assets`, `rights_reviews`, `video_outputs`, `approvals`, and `publication_jobs`. The PR now stages (but does not apply) `supabase/migrations/202611220001_render_jobs.sql`, an owner-scoped render queue with constrained lifecycle states, package/output composite foreign keys, private owner-read RLS, and service-role-only writes. It includes `output_type` (`short`/`long_video`), destination platform (`youtube`, `youtube_shorts`, `tiktok`, `instagram_reels`, `facebook_reels`), aspect ratio, manifest, lifecycle, and eventual output reference.
+- Supabase has owner-scoped `content_packages`, `media_assets`, `rights_reviews`, `video_outputs`, `approvals`, and `publication_jobs`. The PR stages (but does not apply) `supabase/migrations/202611220001_render_jobs.sql`, an owner-scoped render queue with constrained lifecycle states, package/output composite foreign keys, private owner-read RLS, and service-role-only writes. It includes `output_type` (`short`/`long_video`), destination platform (`youtube`, `youtube_shorts`, `tiktok`, `instagram_reels`, `facebook_reels`), aspect ratio, manifest, lifecycle, and eventual output reference.
 - `gcf-ingest-gameplay` authenticates the caller, restricts upstream downloads to Wikimedia's upload host, and stores ingested files privately as rights candidates.
 - `gcf-render-assets` is currently a legacy `short-01` implementation: fixed owner, fixed storage prefix, fixed filenames, and a gateway token. The live `rights_reviews.status` constraint allows `approved_by_owner` (not `approved`); `media_assets.rights_status` separately allows `approved`. Any dynamic rights gate must check both records and the publisher/game-policy, third-party-assets, and music booleans before creating a job.
 - `gcf-upload-media` is also fixed to `short-01` and a fixed allowlist.
-- The generic FFmpeg renderer consumes local episode folders. Its current GitHub workflow only reads files committed to the repository and uploads a short-lived Actions artifact; it does not fetch from Supabase or persist the final MP4 there.
-- The latest renderer CI validates synthetic media and rights-gate rejection. It is not an end-to-end gameplay test.
+- The generic FFmpeg renderer consumes local episode folders. Its dynamic GitHub workflow fetches approved private assets using short-lived URLs, verifies their SHA-256 values, renders, runs media QC, and uploads a one-day review artifact. It does not yet persist the final MP4 to Supabase.
+- `render/quality_check.py` now validates MP4 container readability, required H.264 video and AAC audio streams, target dimensions, 23–60 fps, duration (over 1 and at most 900 seconds), audio/video duration agreement, and a streaming SHA-256 digest. It writes a machine-readable QC report. The GitHub CI run `45266441850` passed, including a positive synthetic render and a negative test proving that a silent MP4 is rejected.
+- CI media is synthetic; it is not an end-to-end gameplay test.
 
 ## Target job contract
 
@@ -43,7 +44,7 @@ Preferred hand-off:
 2. The backend dispatches the fixed workflow using only a non-secret job identifier.
 3. The runner authenticates using a server-managed GitHub Actions secret or a verifiable short-lived workload identity, then exchanges the ticket through a server endpoint. The ticket itself must not be placed in public workflow inputs or logs.
 4. The endpoint returns only short-lived signed URLs for the exact approved asset IDs in the immutable manifest. Use no-store responses and short expiry.
-5. Runner downloads to ephemeral workspace, verifies SHA-256 against the manifest, renders, computes final SHA-256, and uploads the result through a narrowly scoped, expiring upload grant.
+5. Runner downloads to ephemeral workspace, verifies SHA-256 against the manifest, renders, runs the QC gate, computes final SHA-256, and uploads the result through a narrowly scoped, expiring upload grant.
 6. Server validates job ownership/state and output metadata, then inserts `video_outputs` and advances the job state.
 
 If the secure credential exchange cannot be completed, stop the job rather than falling back to public URLs or embedding secrets in the workflow.
@@ -72,18 +73,15 @@ If the secure credential exchange cannot be completed, stop the job rather than 
 
 ## Remaining implementation sequence
 
-1. Apply and review the staged `render_jobs` migration, then build dynamic job creation/status endpoints and owner-scoped manifest validation. The table is not deployed yet.
-2. Replace the fixed `short-01` fetch/upload functions with job-scoped, expiring hand-off endpoints.
-3. Update the generic workflow to fetch, verify, render, and upload dynamically.
-4. Wire the Floot UI to create jobs, show progress, preview private outputs, and collect hash-bound approval.
-5. Run end-to-end tests with authorized gameplay.
-6. Review security findings and deployment settings; keep the existing draft PR unmerged until explicitly approved.
-
+1. Complete the job creation/status endpoint and owner-scoped manifest validation, then review/apply the staged migration. The table is not deployed yet.
+2. Implement job-scoped output upload, server-side MP4/hash verification, and atomic registration in private Storage + `video_outputs` + pending `approvals`.
+3. Wire the Floot UI to create jobs, show progress, preview private outputs, and collect hash-bound approval.
+4. Run end-to-end tests with real authorized gameplay and an approved voiceover.
+5. Review security findings and deployment settings; keep the existing draft PR unmerged until explicitly approved.
 
 ## Dynamic asset handoff implementation (staged, not deployed)
 
-A new Edge Function source file is staged at `supabase/functions/gcf-render-job-assets/index.ts`.
-It is intentionally separate from the live legacy `gcf-render-assets` function, so no production behavior is replaced.
+A new Edge Function source file is staged at `supabase/functions/gcf-render-job-assets/index.ts`. It is intentionally separate from the live legacy `gcf-render-assets` function, so no production behavior is replaced.
 
 ### Request and response contract
 
@@ -94,9 +92,9 @@ It is intentionally separate from the live legacy `gcf-render-assets` function, 
 - Accepted source roles: `gameplay`, `trailer`, exactly one `voiceover`, and optional `music`.
 - Gameplay/trailer assets must be approved MP4s; voiceover and music must be WAV files.
 - Every source-backed gameplay/trailer/music asset (and any source-backed voiceover) must have `media_assets.rights_status='approved'` and the latest matching `rights_reviews` row must be `approved_by_owner`, with commercial use, derivatives, redistribution, game-policy and third-party checks, owner review evidence, and a non-expired license. Music additionally requires `music_rights_verified=true`.
-- Only private `gcf-source-media` objects beneath the job owner's storage prefix are signed. Every asset must carry a valid SHA-256. URLs expire after 10 minutes. Responses are no-store. The function does not choose among historical rights reviews arbitrarily: it evaluates the most recent review per source. It returns the rights evidence required by the FFmpeg renderer.
-- The function does not publish, mutate approval state, or mark a render job complete. `.github/workflows/render-job.yml` now stages a manual OIDC-protected workflow that fetches the signed assets, verifies SHA-256, builds the renderer rights manifest, and produces a one-day review artifact. It does not yet upload the final MP4 to Supabase.
+- Only private `gcf-source-media` objects beneath the job owner's storage prefix are signed. Every asset must carry a valid SHA-256. URLs expire after 10 minutes. Responses are no-store. The function evaluates the most recent review per source and returns the rights evidence required by the FFmpeg renderer.
+- The function does not publish, mutate approval state, or mark a render job complete. `.github/workflows/render-job.yml` stages a manual OIDC-protected workflow that fetches the signed assets, verifies SHA-256, builds the renderer rights manifest, renders, runs `render/quality_check.py`, and produces a one-day review artifact. It does not yet upload the final MP4 to Supabase.
 
 ### Deployment gate
 
-This source depends on the staged `render_jobs` migration. It must be type-checked in CI, reviewed, and deployed only after the migration is applied and a controlled authenticated test succeeds. The function is not deployed to Supabase yet. The new CI step runs `deno check` against this source.
+This source depends on the staged `render_jobs` migration. It must be type-checked in CI, reviewed, and deployed only after the migration is applied and a controlled authenticated test succeeds. The function is not deployed to Supabase yet. CI runs `deno check` against this source and synthetic FFmpeg/QC acceptance tests.
