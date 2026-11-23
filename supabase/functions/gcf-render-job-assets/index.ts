@@ -163,7 +163,7 @@ Deno.serve(async (req: Request) => {
       const commonApproved = review?.status === "approved_by_owner" &&
         review.commercial_use === true && review.derivatives_allowed === true &&
         review.redistribution_allowed === true && review.game_policy_verified === true &&
-        review.third_party_assets_verified === true && Boolean(review.license_url) &&
+        review.third_party_assets_verified === true && review.music_rights_verified === true && Boolean(review.license_url) &&
         review.reviewed_by === job.owner_id && Boolean(review.reviewed_at) &&
         (!review.expires_at || Date.parse(review.expires_at) > Date.now());
       if (!commonApproved || (role === "music" && review?.music_rights_verified !== true)) {
@@ -181,6 +181,7 @@ Deno.serve(async (req: Request) => {
         commercial_use_confirmed: review?.commercial_use === true,
         publisher_policy_verified: review?.game_policy_verified === true,
         third_party_assets_verified: review?.third_party_assets_verified === true,
+        music_rights_verified: review?.music_rights_verified === true,
         rights_confirmed: true,
         reviewer_approved: reviewerApproved,
         source_url: source?.source_url ?? "",
