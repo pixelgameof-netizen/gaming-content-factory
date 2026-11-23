@@ -507,3 +507,131 @@ revoke all on function public.gcf_create_render_job(uuid, text, text, text, json
 revoke all on function public.gcf_list_render_jobs(uuid) from public, anon, service_role;
 grant execute on function public.gcf_create_render_job(uuid, text, text, text, jsonb) to authenticated;
 grant execute on function public.gcf_list_render_jobs(uuid) to authenticated;
+
+
+-- Owner review RPCs bind every decision to the exact output hash and platform.
+create or replace function public.gcf_list_pending_approvals(p_package_id uuid default null)
+returns table (
+  approval_id uuid,
+  video_output_id uuid,
+  package_id uuid,
+  output_type text,
+  platform text,
+  aspect_ratio text,
+  version_no integer,
+  sha256 text,
+  duration_seconds integer,
+  quality_status text,
+  storage_bucket text,
+  storage_path text,
+  status text,
+  created_at timestamptz,
+  decision_note text
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select a.id, o.id, o.package_id, o.output_type, o.platform, o.aspect_ratio,
+         o.version_no, o.sha256, o.duration_seconds, o.quality_status,
+         o.storage_bucket, o.storage_path, a.status, a.created_at, a.decision_note
+    from public.approvals as a
+    join public.video_outputs as o
+      on o.id = a.video_output_id and o.owner_id = a.owner_id
+   where a.owner_id = auth.uid()
+     and o.owner_id = auth.uid()
+     and a.status = 'pending'
+     and (p_package_id is null or o.package_id = p_package_id)
+   order by a.created_at desc
+   limit 50
+$$;
+
+create or replace function public.gcf_decide_render_output(
+  p_approval_id uuid,
+  p_video_output_id uuid,
+  p_sha256 text,
+  p_platform text,
+  p_decision text,
+  p_decision_note text default null
+)
+returns table (
+  approval_id uuid,
+  video_output_id uuid,
+  status text,
+  decided_at timestamptz,
+  output_sha256 text,
+  platform text
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_owner uuid := auth.uid();
+  v_approval public.approvals%rowtype;
+  v_output public.video_outputs%rowtype;
+begin
+  if v_owner is null then
+    raise exception 'authentication required';
+  end if;
+  if p_decision not in ('approved','rejected') or p_sha256 is null
+     or p_sha256 !~* '^[a-f0-9]{64}$' then
+    raise exception 'invalid approval decision or SHA-256';
+  end if;
+
+  select a.* into v_approval
+    from public.approvals as a
+   where a.id = p_approval_id
+     and a.owner_id = v_owner
+   for update;
+  if not found then
+    raise exception 'approval record not found';
+  end if;
+
+  select o.* into v_output
+    from public.video_outputs as o
+   where o.id = v_approval.video_output_id
+     and o.owner_id = v_owner
+   for update;
+  if not found then
+    raise exception 'video output not found';
+  end if;
+
+  if v_approval.video_output_id <> p_video_output_id
+     or v_approval.output_version <> v_output.version_no
+     or lower(v_approval.output_sha256) <> lower(p_sha256)
+     or lower(coalesce(v_output.sha256,'')) <> lower(p_sha256)
+     or v_output.platform <> p_platform
+     or v_output.quality_status <> 'passed'
+     or v_output.storage_bucket <> 'gcf-video-outputs'
+     or v_output.storage_path is null then
+    raise exception 'approval does not match the exact output version, hash, or platform';
+  end if;
+
+  if v_approval.status <> 'pending' then
+    if v_approval.status = p_decision then
+      return query select v_approval.id, v_output.id, v_approval.status,
+                          v_approval.decided_at, v_output.sha256, v_output.platform;
+      return;
+    end if;
+    raise exception 'approval has already been decided';
+  end if;
+
+  update public.approvals
+     set status = p_decision,
+         decided_by = v_owner,
+         decided_at = now(),
+         decision_note = nullif(left(coalesce(p_decision_note,''), 1000), '')
+   where id = v_approval.id
+   returning * into v_approval;
+
+  return query select v_approval.id, v_output.id, v_approval.status,
+                      v_approval.decided_at, v_output.sha256, v_output.platform;
+end;
+$$;
+
+revoke all on function public.gcf_list_pending_approvals(uuid) from public, anon, service_role;
+revoke all on function public.gcf_decide_render_output(uuid, uuid, text, text, text, text) from public, anon, service_role;
+grant execute on function public.gcf_list_pending_approvals(uuid) to authenticated;
+grant execute on function public.gcf_decide_render_output(uuid, uuid, text, text, text, text) to authenticated;
