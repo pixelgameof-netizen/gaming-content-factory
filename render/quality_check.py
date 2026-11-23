@@ -6,11 +6,18 @@ import json
 import math
 import pathlib
 import subprocess
-import sys
 
 
 def fail(message: str) -> None:
     raise SystemExit(f"QC_FAILED: {message}")
+
+
+def stream_hash(path: pathlib.Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def main() -> None:
@@ -38,6 +45,9 @@ def main() -> None:
     except json.JSONDecodeError:
         fail("ffprobe returned invalid metadata")
 
+    fmt = metadata.get("format") or {}
+    if "mp4" not in (fmt.get("format_name") or "").split(","):
+        fail("container is not MP4")
     streams = metadata.get("streams") or []
     video = next((s for s in streams if s.get("codec_type") == "video"), None)
     audio = next((s for s in streams if s.get("codec_type") == "audio"), None)
@@ -56,9 +66,9 @@ def main() -> None:
         fail(f"expected AAC audio, got {audio.get('codec_name')}")
 
     try:
-        duration = float((metadata.get("format") or {}).get("duration"))
-        video_duration = float(video.get("duration", duration))
-        audio_duration = float(audio.get("duration", duration))
+        duration = float(fmt.get("duration"))
+        video_duration = float(video.get("duration") or duration)
+        audio_duration = float(audio.get("duration") or duration)
     except (TypeError, ValueError):
         fail("duration metadata is missing")
     if not math.isfinite(duration) or duration <= 1 or duration > 900:
@@ -75,7 +85,7 @@ def main() -> None:
     if not 23.0 <= fps <= 60.0:
         fail(f"frame rate outside 23–60 fps: {fps}")
 
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    digest = stream_hash(path)
     report = {
         "status": "passed",
         "file": path.name,
@@ -88,8 +98,9 @@ def main() -> None:
         "video_codec": video.get("codec_name"),
         "audio_codec": audio.get("codec_name"),
         "frame_rate": round(fps, 3),
-        "checks": ["file_readable", "video_stream", "audio_stream", "dimensions",
-                   "h264", "aac", "duration", "audio_video_sync", "frame_rate", "sha256"],
+        "checks": ["file_readable", "mp4_container", "video_stream", "audio_stream",
+                   "dimensions", "h264", "aac", "duration", "audio_video_sync",
+                   "frame_rate", "sha256"],
     }
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
