@@ -42,6 +42,9 @@ jobs:
         run: |
           deno check supabase/functions/gcf-render-job-assets/index.ts
           deno check supabase/functions/gcf-render-job-output/index.ts
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Test Spanish Kokoro narration and subtitle generation
         run: |
           python3 -m pip install --disable-pip-version-check --no-cache-dir "kokoro-onnx==0.6.1" "misaki-fork[en]==0.9.6" "soundfile==0.13.1"
