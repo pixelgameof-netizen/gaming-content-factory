@@ -141,7 +141,7 @@ begin
    where j.id = p_job_id
    for update;
 
-  if not found or v_job.owner_id <> p_owner_id then
+  if not found or p_owner_id is null or v_job.owner_id is distinct from p_owner_id then
     raise exception 'render job not found';
   end if;
 
@@ -503,9 +503,9 @@ begin
      or v_approval.output_version <> v_output.version_no
      or lower(v_approval.output_sha256) <> lower(p_sha256)
      or lower(coalesce(v_output.sha256,'')) <> lower(p_sha256)
-     or v_output.platform <> p_platform
-     or v_output.quality_status <> 'passed'
-     or v_output.storage_bucket <> 'gcf-video-outputs'
+     or v_output.platform is distinct from p_platform
+     or v_output.quality_status is distinct from 'passed'
+     or v_output.storage_bucket is distinct from 'gcf-video-outputs'
      or v_output.storage_path is null
      or v_output.storage_path not like (v_owner::text || '/%')
      or v_output.storage_path like '%..%' then
