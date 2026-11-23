@@ -8,7 +8,7 @@ Status: engineering plan; not yet deployed. This document does not authorize a m
 - `gcf-ingest-gameplay` authenticates the caller, restricts upstream downloads to Wikimedia's upload host, and stores ingested files privately as rights candidates.
 - `gcf-render-assets` is currently a legacy `short-01` implementation: fixed owner, fixed storage prefix, fixed filenames, and a gateway token. The live `rights_reviews.status` constraint allows `approved_by_owner` (not `approved`); `media_assets.rights_status` separately allows `approved`. Any dynamic rights gate must check both records and the publisher/game-policy, third-party-assets, and music booleans before creating a job.
 - `gcf-upload-media` is also fixed to `short-01` and a fixed allowlist.
-- The generic FFmpeg renderer consumes local episode folders. Its dynamic GitHub workflow fetches approved private assets using short-lived URLs, verifies their SHA-256 values, renders, runs media QC, uploads the MP4 to private Supabase Storage using a signed resumable TUS token, and asks a server-side finalizer to verify the stored bytes and register the output. A one-day GitHub review artifact remains as a temporary secondary copy.
+- The generic FFmpeg renderer consumes local episode folders. Its dynamic GitHub workflow fetches approved private assets using short-lived URLs, verifies their SHA-256 values, can synthesize Spanish narration from an explicitly owner-approved script with Kokoro ONNX (`ef_dora` voice) and sentence-timed SRT captions, renders, runs media QC, uploads the MP4 to private Supabase Storage using a signed resumable TUS token, and asks a server-side finalizer to verify the stored bytes and register the output. The TTS model and voice-pack release assets are SHA-256 pinned. A one-day GitHub review artifact remains as a temporary secondary copy.
 - `render/quality_check.py` now validates MP4 container readability, required H.264 video and AAC audio streams, target dimensions, 23–60 fps, duration (over 1 and at most 900 seconds), audio/video duration agreement, and a streaming SHA-256 digest. It writes a machine-readable QC report. The GitHub CI runs `45266441850` and `45267064405` passed on earlier intermediate revisions, including Deno type-checking, a positive synthetic render, and rejection of a silent MP4. The latest migration, TUS uploader, and unit-test edits have not yet been exercised by a fresh GitHub Actions run.
 - The output bucket is private and currently capped at 50 MiB; the QC gate enforces that cap. Long-form output above this size is blocked until a storage-limit change is reviewed.
 - Worker queue access uses restricted service-role-only RPCs, so the new queue table does not need to be exposed to the public Data API for worker handoff. The Floot UI now has owner rights-confirmation controls, authenticated render-job creation/status, private output preview, and hash-bound approval/rejection through RPCs; those controls become active only after the staged migration is applied.
@@ -78,7 +78,7 @@ If the secure credential exchange cannot be completed, stop the job rather than 
 
 1. Complete the job creation/status endpoint and owner-scoped manifest validation, then review/apply the staged migration. The table is not deployed yet.
 2. Complete automated tests for the worker-only output upload/finalization path and verify the migration against a disposable database before deployment.
-3. Add an automated, secret-safe GitHub Actions dispatch from the app; the staged Floot UI already creates jobs, lists status, previews private outputs, and records exact-hash owner decisions.
+3. Add an automated, secret-safe GitHub Actions dispatch from the app; the staged Floot UI now creates jobs, lists status, previews private outputs, records exact-hash owner decisions, and lets the owner explicitly approve a script for narration.
 4. Add orphan cleanup and a controlled recovery path for failed uploads/finalization.
 5. Run end-to-end tests with real authorized gameplay and an approved voiceover.
 6. Review security findings and deployment settings; keep the existing draft PR unmerged until explicitly approved.
@@ -93,7 +93,7 @@ A new Edge Function source file is staged at `supabase/functions/gcf-render-job-
 - Request body: `{ "job_id": "<render_jobs UUID>" }`. The response also carries the job's output type, destination platform, and aspect ratio.
 - The function reads the job from `render_jobs`, then resolves only assets whose owner and package match that job.
 - Manifest entries use `{ "asset_id": "<media_assets UUID>", "file_name": "scene-01.mp4" }`.
-- Accepted source roles: `gameplay`, `trailer`, exactly one `voiceover`, and optional `music`.
+- Accepted source roles: `gameplay`, `trailer`, optional one pre-recorded `voiceover`, and optional `music`. If no WAV voiceover is selected, the immutable manifest must carry 80–8,000 characters of narration text from an owner-approved script; the runner generates `voiceover.wav` and sentence-synchronised `captions.srt`.
 - Gameplay/trailer assets must be approved MP4s; voiceover and music must be WAV files. The latest owner-approved review must also confirm that music is absent or cleared for gameplay/trailer assets, not only separate music tracks.
 - Every source-backed gameplay/trailer/music asset (and any source-backed voiceover) must have `media_assets.rights_status='approved'` and the latest matching `rights_reviews` row must be `approved_by_owner`, with commercial use, derivatives, redistribution, game-policy, third-party and music/absence-of-music checks, owner review evidence, and a non-expired license.
 - Only private `gcf-source-media` objects beneath the job owner's storage prefix are signed. Every asset must carry a valid SHA-256. URLs expire after 10 minutes. Responses are no-store. The function evaluates the most recent review per source and returns the rights evidence required by the FFmpeg renderer.
@@ -120,3 +120,12 @@ This source depends on the staged `render_jobs` migration. It must be type-check
 - `gcf_decide_render_output` locks the approval/output rows and requires exact approval ID, output ID, SHA-256, version, platform, passed QC, and owner-scoped private storage path before recording `approved` or `rejected`.
 - The Floot approvals page requests a 10-minute signed URL from private Storage for preview, then submits the explicit decision through the RPC. It never publishes or schedules.
 - The signed preview URL remains in page memory only and expires after ten minutes.
+
+
+## Spanish narration and captions (staged, CI verification pending)
+
+- `render/generate_voiceover.py` uses the Kokoro ONNX model with Spanish G2P from Misaki and the `ef_dora` Spanish voice.
+- The runner downloads the quantized model and voice pack from the upstream `model-files-v1.1` release and checks their published SHA-256 digests before inference.
+- It generates a mono 24 kHz PCM WAV and sentence-level SRT cues from the actual generated audio durations. The renderer burns captions into the final MP4 when `captions.srt` exists.
+- The app only sends narration text when there is no pre-recorded WAV asset and an owner-approved script exists for the requested output type. Draft scripts are not used automatically.
+- The model/runtime is open-source (Kokoro model Apache-2.0; kokoro-onnx MIT). The selected Spanish voice is `ef_dora`; preserve upstream model and dependency notices. The CI runtime test must pass before this path is considered verified.
