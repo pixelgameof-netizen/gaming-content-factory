@@ -33,7 +33,7 @@ for a in assets:
     approved_files.add(f)
     if a.get("status")!="approved" or a.get("commercial_use_confirmed") is not True:
         raise SystemExit(f"Asset not approved for commercial use: {f}")
-    if a.get("publisher_policy_verified") is not True or a.get("third_party_assets_verified") is not True or a.get("reviewer_approved") is not True:
+    if a.get("publisher_policy_verified") is not True or a.get("third_party_assets_verified") is not True or a.get("reviewer_approved") is not True or a.get("music_rights_verified") is not True:
         raise SystemExit(f"Human review incomplete: {f}")
     if not a.get("source_url") or not a.get("license_url"):
         raise SystemExit(f"Missing rights evidence: {f}")
