@@ -273,7 +273,7 @@ begin
   select count(*), count(distinct value->>'asset_id'), count(distinct value->>'file_name')
     into v_asset_count, v_unique_ids, v_unique_names
     from jsonb_array_elements(p_manifest->'assets') as entries(value);
-  if v_asset_count < 2 or v_asset_count > 20
+  if v_asset_count < 1 or v_asset_count > 20
      or v_asset_count <> v_unique_ids or v_asset_count <> v_unique_names then
     raise exception 'manifest must contain 2 to 20 unique assets and filenames';
   end if;
@@ -360,8 +360,11 @@ begin
     end if;
   end loop;
 
-  if v_scene_count < 1 or v_voice_count <> 1 then
-    raise exception 'render requires at least one scene and exactly one voiceover';
+  if v_scene_count < 1 or v_voice_count > 1
+     or (v_voice_count = 0 and length(btrim(coalesce(p_manifest->>'narration_text',''))) < 80)
+     or (v_voice_count = 0 and length(btrim(coalesce(p_manifest->>'narration_text',''))) > 8000)
+     or (v_voice_count = 1 and nullif(btrim(p_manifest->>'narration_text'), '') is not null) then
+    raise exception 'render requires one scene and either one approved WAV voiceover or 80-8000 characters of approved narration text';
   end if;
 
   insert into public.render_jobs (
