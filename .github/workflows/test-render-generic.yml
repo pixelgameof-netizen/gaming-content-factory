@@ -7,6 +7,7 @@ on:
       - 'render/render_generic.sh'
       - 'render/quality_check.py'
       - 'render/upload_supabase_tus.py'
+      - 'tests/**'
       - 'supabase/functions/gcf-render-job-assets/**'
       - 'supabase/functions/gcf-render-job-output/**'
       - 'supabase/migrations/**'
@@ -47,6 +48,7 @@ jobs:
         run: |
           bash -n render/render_generic.sh
           python3 -m py_compile render/quality_check.py render/upload_supabase_tus.py
+          python3 -m unittest discover -s tests -v
       - name: Generate synthetic test inputs
         run: |
           mkdir -p production/renderer-test/media artifacts
