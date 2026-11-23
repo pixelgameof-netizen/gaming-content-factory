@@ -75,6 +75,39 @@ as $$
   where j.id = p_job_id
 $$;
 
+create or replace function public.gcf_claim_next_render_job()
+returns table (id uuid)
+language plpgsql
+security invoker
+set search_path = ''
+as $
+declare
+  v_job_id uuid;
+begin
+  select j.id into v_job_id
+    from public.render_jobs as j
+   where j.status = 'queued'
+     and (j.expires_at is null or j.expires_at > now())
+     and j.attempt_count < 3
+   order by j.created_at asc
+   for update skip locked
+   limit 1;
+
+  if not found then
+    return;
+  end if;
+
+  update public.render_jobs
+     set status = 'preparing',
+         attempt_count = attempt_count + 1,
+         started_at = coalesce(started_at, now()),
+         updated_at = now()
+   where id = v_job_id;
+
+  return query select v_job_id;
+end;
+$;
+
 create or replace function public.gcf_prepare_render_job_upload(p_job_id uuid)
 returns table (
   id uuid,
@@ -223,9 +256,11 @@ $$;
 
 revoke all on function public.gcf_get_render_job_for_worker(uuid) from public, anon, authenticated;
 revoke all on function public.gcf_prepare_render_job_upload(uuid) from public, anon, authenticated;
+revoke all on function public.gcf_claim_next_render_job() from public, anon, authenticated;
 revoke all on function public.gcf_finalize_render_job_output(uuid, uuid, text, text, numeric) from public, anon, authenticated;
 grant execute on function public.gcf_get_render_job_for_worker(uuid) to service_role;
 grant execute on function public.gcf_prepare_render_job_upload(uuid) to service_role;
+grant execute on function public.gcf_claim_next_render_job() to service_role;
 grant execute on function public.gcf_finalize_render_job_output(uuid, uuid, text, text, numeric) to service_role;
 
 -- Authenticated app RPCs: clients never write directly to render_jobs.
