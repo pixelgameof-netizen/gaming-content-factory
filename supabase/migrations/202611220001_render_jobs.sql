@@ -1,5 +1,5 @@
 -- Dynamic render queue, additive and owner-scoped.
--- This migration is staged in the hardening PR branch; it is NOT applied to Supabase yet.
+-- This migration is staged in the hardening PR branch; it is NOT applied to Supabase.
 
 create table if not exists public.render_jobs (
   id uuid primary key default gen_random_uuid(),
@@ -48,7 +48,6 @@ create policy "Owners can read their render jobs"
 revoke all on public.render_jobs from anon, authenticated;
 grant select on public.render_jobs to authenticated;
 grant all on public.render_jobs to service_role;
-
 
 -- Worker-only RPCs keep the render queue usable without exposing the new table
 -- through the public Data API. All writes run as service_role (SECURITY INVOKER).
@@ -161,6 +160,9 @@ begin
          and a.output_sha256 = v_existing.sha256
        order by a.created_at desc
        limit 1;
+      if v_approval_id is null then
+        raise exception 'finalized output has no matching approval record';
+      end if;
       return query select v_job.id, v_existing.id, v_approval_id,
                           v_existing.version_no, v_existing.sha256;
       return;
@@ -176,51 +178,7 @@ begin
                                  '/render-jobs/' || v_job.id::text || '/%.mp4')
      or p_storage_path like '%..%'
      or p_sha256 is null
-     or p_sha256 !~ '^[a-fA-F0-9]{64}     or p_duration_seconds is null
-     or p_duration_seconds <= 1
-     or p_duration_seconds > 900 then
-    raise exception 'invalid output metadata';
-  end if;
-
-  select coalesce(max(o.version_no), 0) + 1 into v_version
-    from public.video_outputs as o
-   where o.package_id = v_job.package_id
-     and o.output_type = v_job.output_type
-     and o.platform = v_job.platform;
-
-  insert into public.video_outputs (
-    owner_id, package_id, output_type, platform, aspect_ratio, version_no,
-    storage_provider, storage_bucket, storage_path, sha256, duration_seconds, quality_status
-  ) values (
-    v_job.owner_id, v_job.package_id, v_job.output_type, v_job.platform, v_job.aspect_ratio, v_version,
-    'supabase', 'gcf-video-outputs', p_storage_path, lower(p_sha256),
-    round(p_duration_seconds)::integer, 'passed'
-  ) returning id into v_output_id;
-
-  insert into public.approvals (
-    owner_id, video_output_id, output_version, output_sha256, status
-  ) values (
-    v_job.owner_id, v_output_id, v_version, lower(p_sha256), 'pending'
-  ) returning id into v_approval_id;
-
-  update public.render_jobs
-     set output_id = v_output_id,
-         status = 'awaiting_owner',
-         completed_at = now(),
-         updated_at = now()
-   where id = v_job.id;
-
-  return query select v_job.id, v_output_id, v_approval_id, v_version, lower(p_sha256);
-end;
-$$;
-
-revoke all on function public.gcf_get_render_job_for_worker(uuid) from public, anon, authenticated;
-revoke all on function public.gcf_prepare_render_job_upload(uuid) from public, anon, authenticated;
-revoke all on function public.gcf_finalize_render_job_output(uuid, uuid, text, text, numeric) from public, anon, authenticated;
-grant execute on function public.gcf_get_render_job_for_worker(uuid) to service_role;
-grant execute on function public.gcf_prepare_render_job_upload(uuid) to service_role;
-grant execute on function public.gcf_finalize_render_job_output(uuid, uuid, text, text, numeric) to service_role;
-
+     or p_sha256 !~ '^[a-fA-F0-9]{64}$'
      or p_duration_seconds is null
      or p_duration_seconds <= 1
      or p_duration_seconds > 900 then
