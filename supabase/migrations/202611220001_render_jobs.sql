@@ -305,11 +305,110 @@ begin
     if not found then
       raise exception 'asset is missing, unapproved, or outside this package';
     end if;
-    if v_asset.storage_bucket <> 'gcf-source-media'
+    if v_asset.storage_bucket is distinct from 'gcf-source-media'
        or v_asset.storage_path is null
        or v_asset.storage_path not like (v_owner::text || '/%')
        or v_asset.storage_path like '%..%'
-       or v_asset.sha256 !~* '^[a-f0-9]{64}$' then
+       or v_asset.sha256 is null
+       or v_asset.sha256 !~* '^[a-f0-9]{64}
+      raise exception 'asset storage path or SHA-256 is invalid';
+    end if;
+
+    v_role := v_asset.asset_role;
+    if v_role in ('gameplay','trailer') then
+      if v_file_name !~ '^scene-[0-9]{2,3}\.mp4$' or v_asset.mime_type <> 'video/mp4' then
+        raise exception 'gameplay/trailer must be MP4 scene files';
+      end if;
+      v_scene_count := v_scene_count + 1;
+    elsif v_role = 'voiceover' then
+      if v_file_name <> 'voiceover.wav' or v_asset.mime_type not in ('audio/wav','audio/x-wav') then
+        raise exception 'voiceover must be voiceover.wav';
+      end if;
+      v_voice_count := v_voice_count + 1;
+    elsif v_role = 'music' then
+      if v_file_name <> 'music.wav' or v_asset.mime_type not in ('audio/wav','audio/x-wav') then
+        raise exception 'music must be music.wav';
+      end if;
+    else
+      raise exception 'unsupported render asset role';
+    end if;
+
+    if v_role in ('gameplay','trailer','music') and v_asset.source_id is null then
+      raise exception 'source-backed gameplay, trailer, and music require rights review';
+    end if;
+    if v_asset.source_id is not null then
+      select r.* into v_review
+        from public.rights_reviews as r
+       where r.owner_id = v_owner and r.source_id = v_asset.source_id
+       order by r.created_at desc
+       limit 1;
+      if not found or v_review.status is distinct from 'approved_by_owner'
+         or v_review.commercial_use is not true
+         or v_review.derivatives_allowed is not true
+         or v_review.redistribution_allowed is not true
+         or v_review.game_policy_verified is not true
+         or v_review.third_party_assets_verified is not true
+         or v_review.license_url is null
+         or v_review.reviewed_by is distinct from v_owner
+         or v_review.reviewed_at is null
+         or (v_review.expires_at is not null and v_review.expires_at <= now()) then
+        raise exception 'latest rights review is not owner-approved for this asset';
+      end if;
+      if v_role in ('gameplay','trailer','music') and v_review.music_rights_verified is not true then
+        raise exception 'music rights or absence of music have not been verified';
+      end if;
+    end if;
+  end loop;
+
+  if v_scene_count < 1 or v_voice_count <> 1 then
+    raise exception 'render requires at least one scene and exactly one voiceover';
+  end if;
+
+  insert into public.render_jobs (
+    owner_id, package_id, output_type, platform, aspect_ratio, manifest, status, expires_at
+  ) values (
+    v_owner, p_package_id, p_output_type, p_platform, p_aspect_ratio, p_manifest, 'queued', now() + interval '1 day'
+  ) returning render_jobs.id into v_job_id;
+
+  return query
+    select j.id, j.status, j.output_type, j.platform, j.aspect_ratio, j.created_at
+      from public.render_jobs as j
+     where j.id = v_job_id;
+end;
+$$;
+
+create or replace function public.gcf_list_render_jobs(p_package_id uuid)
+returns table (
+  id uuid,
+  package_id uuid,
+  status text,
+  output_type text,
+  platform text,
+  aspect_ratio text,
+  output_id uuid,
+  created_at timestamptz,
+  updated_at timestamptz,
+  completed_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select j.id, j.package_id, j.status, j.output_type, j.platform, j.aspect_ratio,
+         j.output_id, j.created_at, j.updated_at, j.completed_at
+    from public.render_jobs as j
+   where j.owner_id = auth.uid()
+     and j.package_id = p_package_id
+   order by j.created_at desc
+   limit 50
+$$;
+
+revoke all on function public.gcf_create_render_job(uuid, text, text, text, jsonb) from public, anon, service_role;
+revoke all on function public.gcf_list_render_jobs(uuid) from public, anon, service_role;
+grant execute on function public.gcf_create_render_job(uuid, text, text, text, jsonb) to authenticated;
+grant execute on function public.gcf_list_render_jobs(uuid) to authenticated;
+ then
       raise exception 'asset storage path or SHA-256 is invalid';
     end if;
 
