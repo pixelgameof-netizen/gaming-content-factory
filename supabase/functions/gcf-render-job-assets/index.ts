@@ -53,12 +53,11 @@ Deno.serve(async (req: Request) => {
     return json({ error: "A valid job_id is required" }, 400);
   }
 
-  const { data: job, error: jobError } = await admin
-    .from("render_jobs")
-    .select("id,owner_id,package_id,status,output_type,platform,aspect_ratio,manifest,expires_at")
-    .eq("id", body.job_id)
-    .maybeSingle();
+  const { data: jobRows, error: jobError } = await admin.rpc("gcf_get_render_job_for_worker", {
+    p_job_id: body.job_id,
+  });
   if (jobError) return json({ error: "Unable to load render job" }, 500);
+  const job = Array.isArray(jobRows) ? jobRows[0] : jobRows;
   if (!job) return json({ error: "Render job not found" }, 404);
   if (job.status !== "queued" && job.status !== "preparing") {
     return json({ error: "Render job is not available for asset handoff", status: job.status }, 409);
