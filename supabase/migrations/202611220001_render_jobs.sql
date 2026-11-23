@@ -185,6 +185,10 @@ begin
     raise exception 'invalid output metadata';
   end if;
 
+  perform pg_advisory_xact_lock(hashtextextended(
+    v_job.package_id::text || ':' || v_job.output_type || ':' || v_job.platform, 0
+  ));
+
   select coalesce(max(o.version_no), 0) + 1 into v_version
     from public.video_outputs as o
    where o.package_id = v_job.package_id
