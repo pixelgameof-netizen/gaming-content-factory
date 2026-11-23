@@ -8,8 +8,10 @@ Status: engineering plan; not yet deployed. This document does not authorize a m
 - `gcf-ingest-gameplay` authenticates the caller, restricts upstream downloads to Wikimedia's upload host, and stores ingested files privately as rights candidates.
 - `gcf-render-assets` is currently a legacy `short-01` implementation: fixed owner, fixed storage prefix, fixed filenames, and a gateway token. The live `rights_reviews.status` constraint allows `approved_by_owner` (not `approved`); `media_assets.rights_status` separately allows `approved`. Any dynamic rights gate must check both records and the publisher/game-policy, third-party-assets, and music booleans before creating a job.
 - `gcf-upload-media` is also fixed to `short-01` and a fixed allowlist.
-- The generic FFmpeg renderer consumes local episode folders. Its dynamic GitHub workflow fetches approved private assets using short-lived URLs, verifies their SHA-256 values, renders, runs media QC, and uploads a one-day review artifact. It does not yet persist the final MP4 to Supabase.
+- The generic FFmpeg renderer consumes local episode folders. Its dynamic GitHub workflow fetches approved private assets using short-lived URLs, verifies their SHA-256 values, renders, runs media QC, uploads the MP4 to private Supabase Storage using a signed resumable TUS token, and asks a server-side finalizer to verify the stored bytes and register the output. A one-day GitHub review artifact remains as a temporary secondary copy.
 - `render/quality_check.py` now validates MP4 container readability, required H.264 video and AAC audio streams, target dimensions, 23–60 fps, duration (over 1 and at most 900 seconds), audio/video duration agreement, and a streaming SHA-256 digest. It writes a machine-readable QC report. The GitHub CI run `45266441850` passed, including a positive synthetic render and a negative test proving that a silent MP4 is rejected.
+- The output bucket is private and currently capped at 50 MiB; the QC gate enforces that cap. Long-form output above this size is blocked until a storage-limit change is reviewed.
+- Worker queue access uses restricted service-role-only RPCs, so the new queue table does not need to be exposed to the public Data API for worker handoff. Authenticated app-side job creation/status UI is still pending.
 - CI media is synthetic; it is not an end-to-end gameplay test.
 
 ## Target job contract
@@ -44,8 +46,9 @@ Preferred hand-off:
 2. The backend dispatches the fixed workflow using only a non-secret job identifier.
 3. The runner authenticates using a server-managed GitHub Actions secret or a verifiable short-lived workload identity, then exchanges the ticket through a server endpoint. The ticket itself must not be placed in public workflow inputs or logs.
 4. The endpoint returns only short-lived signed URLs for the exact approved asset IDs in the immutable manifest. Use no-store responses and short expiry.
-5. Runner downloads to ephemeral workspace, verifies SHA-256 against the manifest, renders, runs the QC gate, computes final SHA-256, and uploads the result through a narrowly scoped, expiring upload grant.
-6. Server validates job ownership/state and output metadata, then inserts `video_outputs` and advances the job state.
+5. Runner downloads to ephemeral workspace, verifies SHA-256 against the manifest, renders, runs the QC gate, and computes the final SHA-256.
+6. A worker-only endpoint creates a one-time signed upload token bound to a unique object path under the job owner/package prefix. The runner uses the token for a resumable TUS upload; the token and URL never enter workflow inputs or artifacts.
+7. The finalizer downloads the stored object, checks its byte count and SHA-256 against the QC report, then calls a transaction-safe RPC to insert `video_outputs`, create a pending hash-bound `approvals` row, and advance the job to `awaiting_owner`.
 
 If the secure credential exchange cannot be completed, stop the job rather than falling back to public URLs or embedding secrets in the workflow.
 
@@ -67,17 +70,18 @@ If the secure credential exchange cannot be completed, stop the job rather than 
 5. Arbitrary episode names, storage paths, hosts, and filenames are rejected.
 6. Workflow logs and run metadata contain no bearer tokens, signed URLs, or service-role keys.
 7. Successful render uploads an MP4 to private Storage and registers matching SHA-256 metadata.
-8. Approval is bound to the exact output version/hash; a changed hash cannot publish.
-9. A failed upload or DB insert cleans up temporary objects and leaves a recoverable failed job.
+8. A changed or mismatched stored output hash is rejected; approval is bound to the exact output version/hash.
+9. A failed DB finalization leaves the output private and unapproved for recovery; orphan cleanup remains to be automated.
 10. Test with a real, authorized gameplay clip and final voiceover; synthetic CI media is not sufficient.
 
 ## Remaining implementation sequence
 
 1. Complete the job creation/status endpoint and owner-scoped manifest validation, then review/apply the staged migration. The table is not deployed yet.
-2. Implement job-scoped output upload, server-side MP4/hash verification, and atomic registration in private Storage + `video_outputs` + pending `approvals`.
-3. Wire the Floot UI to create jobs, show progress, preview private outputs, and collect hash-bound approval.
-4. Run end-to-end tests with real authorized gameplay and an approved voiceover.
-5. Review security findings and deployment settings; keep the existing draft PR unmerged until explicitly approved.
+2. Complete automated tests for the worker-only output upload/finalization path and verify the migration against a disposable database before deployment.
+3. Add authenticated app-side RPCs/UI to create render jobs, show progress, preview private outputs, and collect hash-bound approval.
+4. Add orphan cleanup and a controlled recovery path for failed uploads/finalization.
+5. Run end-to-end tests with real authorized gameplay and an approved voiceover.
+6. Review security findings and deployment settings; keep the existing draft PR unmerged until explicitly approved.
 
 ## Dynamic asset handoff implementation (staged, not deployed)
 
@@ -98,3 +102,13 @@ A new Edge Function source file is staged at `supabase/functions/gcf-render-job-
 ### Deployment gate
 
 This source depends on the staged `render_jobs` migration. It must be type-checked in CI, reviewed, and deployed only after the migration is applied and a controlled authenticated test succeeds. The function is not deployed to Supabase yet. CI runs `deno check` against this source and synthetic FFmpeg/QC acceptance tests.
+
+
+## Private output upload and atomic finalization (staged, not deployed)
+
+- `supabase/functions/gcf-render-job-output/index.ts` accepts only GitHub OIDC tokens for the repository, owner actor, exact workflow file, and allowed branch. Its audience is `gcf-render-job-output`.
+- `prepare_upload` moves the job into `uploading`, generates a unique owner/package/job-scoped MP4 path, and returns a signed upload token for the private `gcf-video-outputs` bucket.
+- `render/upload_supabase_tus.py` uses the signed token with Supabase's resumable TUS endpoint and 6 MiB chunks. The token is held in runner memory/environment only; it is not a workflow input, artifact, or log value.
+- `finalize` downloads the private object server-side, checks the byte count and SHA-256 against the QC report, and calls `gcf_finalize_render_job_output`.
+- The SQL RPC runs as `SECURITY INVOKER` and is executable only by `service_role`. In one database transaction it creates `video_outputs`, creates a pending `approvals` row bound to the output version and hash, and changes the job to `awaiting_owner`. A repeated identical finalization is idempotent.
+- Current bucket limit is 50 MiB. The QC helper blocks larger outputs. No real output has been uploaded and this code has not been deployed or executed against the live project.
