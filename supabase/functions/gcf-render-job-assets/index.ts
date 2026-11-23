@@ -47,14 +47,23 @@ Deno.serve(async (req: Request) => {
     return json({ error: "GitHub Actions workflow identity is not authorized" }, 403);
   }
 
-  let body: { job_id?: unknown };
+  let body: { job_id?: unknown; action?: unknown };
   try { body = await req.json(); } catch { return json({ error: "Invalid JSON body" }, 400); }
-  if (typeof body.job_id !== "string" || !UUID_RE.test(body.job_id)) {
-    return json({ error: "A valid job_id is required" }, 400);
+  let jobId: string;
+  if (body.action === "claim_next" && body.job_id === undefined) {
+    const { data: claimedRows, error: claimError } = await admin.rpc("gcf_claim_next_render_job");
+    if (claimError) return json({ error: "Unable to claim the next render job" }, 500);
+    const claimed = Array.isArray(claimedRows) ? claimedRows[0] : claimedRows;
+    if (!claimed?.id) return json({ empty: true });
+    jobId = claimed.id;
+  } else if (typeof body.job_id === "string" && UUID_RE.test(body.job_id) && body.action === undefined) {
+    jobId = body.job_id;
+  } else {
+    return json({ error: "Provide a valid job_id or action: claim_next" }, 400);
   }
 
   const { data: jobRows, error: jobError } = await admin.rpc("gcf_get_render_job_for_worker", {
-    p_job_id: body.job_id,
+    p_job_id: jobId,
   });
   if (jobError) return json({ error: "Unable to load render job" }, 500);
   const job = Array.isArray(jobRows) ? jobRows[0] : jobRows;
@@ -70,8 +79,8 @@ Deno.serve(async (req: Request) => {
   }
 
   const manifest = job.manifest as { assets?: unknown; narration_text?: unknown };
-  if (!manifest || !Array.isArray(manifest.assets) || manifest.assets.length < 2 || manifest.assets.length > 20) {
-    return json({ error: "Manifest must contain between 2 and 20 assets" }, 422);
+  if (!manifest || !Array.isArray(manifest.assets) || manifest.assets.length < 1 || manifest.assets.length > 20) {
+    return json({ error: "Manifest must contain between 1 and 20 assets" }, 422);
   }
   const requested = manifest.assets as Array<{ asset_id?: unknown; file_name?: unknown }>;
   const seenNames = new Set<string>();
