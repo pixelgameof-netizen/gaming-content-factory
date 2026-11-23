@@ -18,6 +18,7 @@ on:
       - 'render/render_generic.sh'
       - 'render/quality_check.py'
       - 'render/upload_supabase_tus.py'
+      - 'tests/**'
       - 'supabase/functions/gcf-render-job-assets/**'
       - 'supabase/functions/gcf-render-job-output/**'
       - 'supabase/migrations/**'
