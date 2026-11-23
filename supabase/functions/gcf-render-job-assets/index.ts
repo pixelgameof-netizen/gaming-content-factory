@@ -193,8 +193,11 @@ Deno.serve(async (req: Request) => {
     files.push({ file_name: fileName, role, url: signed.signedUrl, sha256: asset.sha256 ?? null, rights });
   }
 
-  if (sceneCount < 1 || voiceCount !== 1) {
-    return json({ error: "A render requires at least one approved gameplay scene and exactly one approved voiceover" }, 422);
+  const narrationText = typeof manifest.narration_text === "string" ? manifest.narration_text.trim() : "";
+  if (sceneCount < 1 || voiceCount > 1 ||
+      (voiceCount === 0 && (narrationText.length < 80 || narrationText.length > 8000)) ||
+      (voiceCount === 1 && narrationText.length > 0)) {
+    return json({ error: "A render requires gameplay and either one approved WAV voiceover or 80–8000 characters of narration text" }, 422);
   }
   return json({
     job_id: job.id,
@@ -202,6 +205,7 @@ Deno.serve(async (req: Request) => {
     output_type: job.output_type,
     platform: job.platform,
     aspect_ratio: job.aspect_ratio,
+    narration_text: narrationText || null,
     expires_in: URL_TTL_SECONDS,
     files,
   });
