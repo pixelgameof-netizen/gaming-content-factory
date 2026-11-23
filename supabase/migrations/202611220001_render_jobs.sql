@@ -575,7 +575,7 @@ begin
   if v_owner is null then
     raise exception 'authentication required';
   end if;
-  if p_decision not in ('approved','rejected') or p_sha256 is null
+  if p_decision is null or p_decision not in ('approved','rejected') or p_sha256 is null
      or p_sha256 !~* '^[a-f0-9]{64}$' then
     raise exception 'invalid approval decision or SHA-256';
   end if;
@@ -598,14 +598,17 @@ begin
     raise exception 'video output not found';
   end if;
 
-  if v_approval.video_output_id <> p_video_output_id
+  if p_video_output_id is null or p_platform is null
+     or v_approval.video_output_id <> p_video_output_id
      or v_approval.output_version <> v_output.version_no
      or lower(v_approval.output_sha256) <> lower(p_sha256)
      or lower(coalesce(v_output.sha256,'')) <> lower(p_sha256)
      or v_output.platform <> p_platform
      or v_output.quality_status <> 'passed'
      or v_output.storage_bucket <> 'gcf-video-outputs'
-     or v_output.storage_path is null then
+     or v_output.storage_path is null
+     or v_output.storage_path not like (v_owner::text || '/%')
+     or v_output.storage_path like '%..%' then
     raise exception 'approval does not match the exact output version, hash, or platform';
   end if;
 
