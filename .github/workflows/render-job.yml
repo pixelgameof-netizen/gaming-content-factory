@@ -4,16 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       job_id:
-        description: Existing render_jobs UUID
-        required: true
+        description: Existing render_jobs UUID (leave blank to claim the next queued job)
+        required: false
         type: string
+  schedule:
+    - cron: "*/10 * * * *"
 
 permissions:
   contents: read
   id-token: write
 
 concurrency:
-  group: gcf-render-job-${{ inputs.job_id }}
+  group: gcf-render-job-${{ inputs.job_id || 'scheduled-queue' }}
   cancel-in-progress: false
 
 jobs:
@@ -33,14 +35,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Fetch approved assets and render
+      - name: Claim job and fetch approved assets
+        id: prepare
         env:
           JOB_ID: ${{ inputs.job_id }}
           SUPABASE_URL: https://pyrrcfegucvxyxlxzowu.supabase.co
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$JOB_ID" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "Invalid job UUID" >&2; exit 2; }
           : "${ACTIONS_ID_TOKEN_REQUEST_URL:?GitHub OIDC is unavailable}"
           : "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:?GitHub OIDC request token is unavailable}"
 
@@ -50,13 +52,27 @@ jobs:
             "$ACTIONS_ID_TOKEN_REQUEST_URL")"
           OIDC_TOKEN="$(jq -er '.value' <<<"$OIDC_RESPONSE")"
           RESPONSE_FILE="$RUNNER_TEMP/gcf-render-assets.json"
+          if [[ -n "$JOB_ID" ]]; then
+            [[ "$JOB_ID" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "Invalid job UUID" >&2; exit 2; }
+            REQUEST_BODY="$(jq -cn --arg id "$JOB_ID" '{job_id:$id}')"
+          else
+            REQUEST_BODY='{"action":"claim_next"}'
+          fi
           curl --fail --silent --show-error --request POST \
             -H "Authorization: Bearer $OIDC_TOKEN" \
             -H "Content-Type: application/json" \
-            --data "$(jq -cn --arg id "$JOB_ID" '{job_id:$id}')" \
+            --data "$REQUEST_BODY" \
             "$SUPABASE_URL/functions/v1/gcf-render-job-assets" \
             --output "$RESPONSE_FILE"
-          unset OIDC_TOKEN OIDC_RESPONSE
+          unset OIDC_TOKEN OIDC_RESPONSE REQUEST_BODY
+          if [[ "$(jq -r '.empty // false' "$RESPONSE_FILE")" == "true" ]]; then
+            echo "No queued render jobs."
+            echo "job_id=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          JOB_ID="$(jq -er '.job_id' "$RESPONSE_FILE")"
+          [[ "$JOB_ID" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "Worker returned an invalid job UUID" >&2; exit 2; }
+          echo "job_id=$JOB_ID" >> "$GITHUB_OUTPUT"
 
           EPISODE="$JOB_ID"
           ROOT="production/$EPISODE"
@@ -111,8 +127,9 @@ jobs:
           bash render/render_generic.sh "$EPISODE" "$FORMAT" "artifacts/$EPISODE.mp4"
 
       - name: Run media quality gate
+        if: steps.prepare.outputs.job_id != ''
         env:
-          JOB_ID: ${{ inputs.job_id }}
+          JOB_ID: ${{ steps.prepare.outputs.job_id }}
         run: |
           set -euo pipefail
           ASPECT="$(jq -er '.aspect_ratio' "$RUNNER_TEMP/gcf-render-assets.json")"
@@ -121,8 +138,9 @@ jobs:
           sha256sum "artifacts/$JOB_ID.mp4" > "artifacts/$JOB_ID.mp4.sha256"
 
       - name: Upload and register private output
+        if: steps.prepare.outputs.job_id != ''
         env:
-          JOB_ID: ${{ inputs.job_id }}
+          JOB_ID: ${{ steps.prepare.outputs.job_id }}
           SUPABASE_URL: https://pyrrcfegucvxyxlxzowu.supabase.co
         shell: bash
         run: |
@@ -171,9 +189,10 @@ jobs:
           unset OIDC_TOKEN OIDC_RESPONSE ACTIONS_ID_TOKEN_REQUEST_TOKEN
 
       - name: Upload review artifact (not publication)
+        if: steps.prepare.outputs.job_id != ''
         uses: actions/upload-artifact@v4
         with:
-          name: gcf-review-${{ inputs.job_id }}
-          path: artifacts/${{ inputs.job_id }}.*
+          name: gcf-review-${{ steps.prepare.outputs.job_id }}
+          path: artifacts/${{ steps.prepare.outputs.job_id }}.*
           retention-days: 1
           if-no-files-found: error
