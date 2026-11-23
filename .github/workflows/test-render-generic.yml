@@ -10,6 +10,14 @@ on:
       - 'supabase/migrations/**'
       - '.github/workflows/render-job.yml'
       - '.github/workflows/test-render-generic.yml'
+  pull_request:
+    paths:
+      - 'render/render_generic.sh'
+      - 'render/quality_check.py'
+      - 'supabase/functions/gcf-render-job-assets/**'
+      - 'supabase/migrations/**'
+      - '.github/workflows/render-job.yml'
+      - '.github/workflows/test-render-generic.yml'
   workflow_dispatch:
 
 permissions:
