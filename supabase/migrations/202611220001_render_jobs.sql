@@ -239,6 +239,7 @@ create or replace function public.gcf_create_render_job(
 )
 returns table (
   id uuid,
+  package_id uuid,
   status text,
   output_type text,
   platform text,
@@ -371,7 +372,7 @@ begin
   ) returning render_jobs.id into v_job_id;
 
   return query
-    select j.id, j.status, j.output_type, j.platform, j.aspect_ratio, j.created_at
+    select j.id, j.package_id, j.status, j.output_type, j.platform, j.aspect_ratio, j.created_at
       from public.render_jobs as j
      where j.id = v_job_id;
 end;
