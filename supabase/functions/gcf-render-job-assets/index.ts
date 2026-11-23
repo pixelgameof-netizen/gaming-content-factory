@@ -59,7 +59,7 @@ Deno.serve(async (req: Request) => {
   if (jobError) return json({ error: "Unable to load render job" }, 500);
   const job = Array.isArray(jobRows) ? jobRows[0] : jobRows;
   if (!job) return json({ error: "Render job not found" }, 404);
-  if (job.status !== "queued" && job.status !== "preparing") {
+  if (job.status !== "queued" && job.status !== "preparing" && job.status !== "uploading") {
     return json({ error: "Render job is not available for asset handoff", status: job.status }, 409);
   }
   if (job.expires_at && Date.parse(job.expires_at) <= Date.now()) {
