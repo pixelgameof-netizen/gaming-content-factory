@@ -58,7 +58,11 @@ jobs:
           python3 render/generate_voiceover.py --script "$RUNNER_TEMP/voiceover-test.txt" --model "$MODEL" --voices "$VOICES" --audio "$RUNNER_TEMP/voiceover-test.wav" --captions "$RUNNER_TEMP/voiceover-test.srt"
           test -s "$RUNNER_TEMP/voiceover-test.wav"
           test -s "$RUNNER_TEMP/voiceover-test.srt"
-          ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,sample_rate -of csv=p=0 "$RUNNER_TEMP/voiceover-test.wav"
+          python3 - <<'PY'
+          import soundfile as sf
+          info = sf.info("$RUNNER_TEMP/voiceover-test.wav")
+          assert info.samplerate == 24000 and info.channels == 1
+          PY
       - name: Install FFmpeg
         run: |
           sudo apt-get update
