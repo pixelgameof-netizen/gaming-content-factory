@@ -134,6 +134,6 @@ This source depends on the staged `render_jobs` migration. It must be type-check
 ## Scheduled queue worker (staged, not active until merge/deploy)
 
 - The render workflow runs every 10 minutes on the repository default branch and can still be manually dispatched with an explicit job UUID.
-- For scheduled runs, the OIDC-authenticated asset function calls `gcf_claim_next_render_job()`, which uses `FOR UPDATE SKIP LOCKED` to atomically claim one unexpired queued job and move it to `preparing`.
+- For scheduled runs, the OIDC-authenticated asset function calls `gcf_claim_next_render_job()`, which uses `FOR UPDATE SKIP LOCKED` to atomically claim one unexpired queued job and move it to `preparing`. Manual dispatches use `gcf_claim_render_job(job_id)` so the same job cannot be claimed by both paths.
 - Stale `preparing` jobs older than 30 minutes can be reclaimed, up to three attempts. Jobs already in `uploading` are not auto-reclaimed; interrupted upload recovery and orphan cleanup remain pending.
 - No GitHub PAT, Actions dispatch secret, or third-party scheduler is needed. The scheduled worker becomes active only after the workflow is merged to the default branch and the SQL migration plus Edge Function are deployed.
