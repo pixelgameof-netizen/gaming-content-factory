@@ -65,6 +65,7 @@ jobs:
               "commercial_use_confirmed": true,
               "publisher_policy_verified": true,
               "third_party_assets_verified": true,
+              "music_rights_verified": true,
               "reviewer_approved": true,
               "source_url": "synthetic://generated-test",
               "license_url": "synthetic://generated-test"
@@ -74,6 +75,7 @@ jobs:
               "commercial_use_confirmed": true,
               "publisher_policy_verified": true,
               "third_party_assets_verified": true,
+              "music_rights_verified": true,
               "reviewer_approved": true,
               "source_url": "synthetic://generated-test",
               "license_url": "synthetic://generated-test"
