@@ -84,13 +84,20 @@ jobs:
           esac
           bash render/render_generic.sh "$EPISODE" "$FORMAT" "artifacts/$EPISODE.mp4"
 
-          echo "Rendered output hash:"
-          sha256sum "artifacts/$EPISODE.mp4"
+      - name: Run media quality gate
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+        run: |
+          set -euo pipefail
+          ASPECT="$(jq -er '.aspect_ratio' "$RUNNER_TEMP/gcf-render-assets.json")"
+          python3 render/quality_check.py "artifacts/$JOB_ID.mp4" \
+            --aspect "$ASPECT" --report "artifacts/$JOB_ID.qc.json"
+          sha256sum "artifacts/$JOB_ID.mp4" > "artifacts/$JOB_ID.mp4.sha256"
 
       - name: Upload review artifact (not publication)
         uses: actions/upload-artifact@v4
         with:
           name: gcf-review-${{ inputs.job_id }}
-          path: artifacts/${{ inputs.job_id }}.mp4*
+          path: artifacts/${{ inputs.job_id }}.*
           retention-days: 1
           if-no-files-found: error
