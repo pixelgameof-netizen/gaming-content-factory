@@ -101,7 +101,7 @@ Deno.serve(async (req: Request) => {
       job_id: job.id,
       bucket: BUCKET,
       storage_path: storagePath,
-      signed_url: signed.signedUrl,
+      upload_token: signed.token,
       expires_in: 7200,
       max_bytes: MAX_OUTPUT_BYTES,
     });
