@@ -29,6 +29,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg jq
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Fetch approved assets and render
         env:
           JOB_ID: ${{ inputs.job_id }}
