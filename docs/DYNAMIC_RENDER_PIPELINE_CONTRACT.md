@@ -129,3 +129,11 @@ This source depends on the staged `render_jobs` migration. It must be type-check
 - It generates a mono 24 kHz PCM WAV and sentence-level SRT cues from the actual generated audio durations. The renderer burns captions into the final MP4 when `captions.srt` exists.
 - The app only sends narration text when there is no pre-recorded WAV asset and an owner-approved script exists for the requested output type. Draft scripts are not used automatically.
 - The model/runtime is open-source (Kokoro model Apache-2.0; kokoro-onnx MIT). The selected Spanish voice is `ef_dora`; preserve upstream model and dependency notices. The CI runtime test must pass before this path is considered verified.
+
+
+## Scheduled queue worker (staged, not active until merge/deploy)
+
+- The render workflow runs every 10 minutes on the repository default branch and can still be manually dispatched with an explicit job UUID.
+- For scheduled runs, the OIDC-authenticated asset function calls `gcf_claim_next_render_job()`, which uses `FOR UPDATE SKIP LOCKED` to atomically claim one unexpired queued job and move it to `preparing`.
+- Stale `preparing` jobs older than 30 minutes can be reclaimed, up to three attempts. Jobs already in `uploading` are not auto-reclaimed; interrupted upload recovery and orphan cleanup remain pending.
+- No GitHub PAT, Actions dispatch secret, or third-party scheduler is needed. The scheduled worker becomes active only after the workflow is merged to the default branch and the SQL migration plus Edge Function are deployed.
