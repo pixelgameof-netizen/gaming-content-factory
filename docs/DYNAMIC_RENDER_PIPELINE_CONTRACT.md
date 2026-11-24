@@ -1,6 +1,6 @@
 # Dynamic render pipeline: implementation contract
 
-Status: engineering plan; not yet deployed. This document does not authorize a merge, production deployment, or publication.
+Status: implementation reference for the deployed worker pipeline. A real production render and live app verification are still pending. This document does not authorize publication.
 
 ## Current verified state
 
@@ -76,16 +76,16 @@ If the secure credential exchange cannot be completed, stop the job rather than 
 
 ## Remaining implementation sequence
 
-1. Complete the job creation/status endpoint and owner-scoped manifest validation, then review/apply the staged migration. The table is not deployed yet.
-2. Complete automated tests for the worker-only output upload/finalization path and verify the migration against a disposable database before deployment.
-3. Add an automated, secret-safe GitHub Actions dispatch from the app; the staged Floot UI now creates jobs, lists status, previews private outputs, records exact-hash owner decisions, and lets the owner explicitly approve a script for narration.
-4. Add orphan cleanup and a controlled recovery path for failed uploads/finalization.
-5. Run end-to-end tests with real authorized gameplay and an approved voiceover.
-6. Review security findings and deployment settings; keep the existing draft PR unmerged until explicitly approved.
+1. Verify the Floot app's authenticated owner session can create a real job, list its status, and show private output previews and hash-bound approval controls.
+2. Run the first real render end to end with the already-approved Minecraft package; inspect the MP4, QC report, attribution, SHA-256, and private output registration.
+3. Test multiple queued jobs, duplicate claims, expired jobs, transient download/upload errors, and worker retry behavior.
+4. Implement a safe, owner-scoped recovery and cleanup path for interrupted uploads and orphaned private objects; do not auto-delete outputs without checking their job and approval state.
+5. Generalize candidate selection, rights review, and staging beyond the curated Minecraft set while retaining per-game publisher-policy and third-party rights checks.
+6. Verify the app on Android and desktop, then review current Supabase security findings and repository visibility before declaring the platform complete.
 
-## Dynamic asset handoff implementation (staged, not deployed)
+## Dynamic asset handoff implementation (deployed; real job verification pending)
 
-A new Edge Function source file is staged at `supabase/functions/gcf-render-job-assets/index.ts`. It is intentionally separate from the live legacy `gcf-render-assets` function, so no production behavior is replaced.
+The Edge Function source at `supabase/functions/gcf-render-job-assets/index.ts` is deployed. It remains separate from the legacy `gcf-render-assets` function, so the legacy behavior is not replaced.
 
 ### Request and response contract
 
@@ -97,21 +97,21 @@ A new Edge Function source file is staged at `supabase/functions/gcf-render-job-
 - Gameplay/trailer assets must be approved MP4s; voiceover and music must be WAV files. The latest owner-approved review must also confirm that music is absent or cleared for gameplay/trailer assets, not only separate music tracks.
 - Every source-backed gameplay/trailer/music asset (and any source-backed voiceover) must have `media_assets.rights_status='approved'` and the latest matching `rights_reviews` row must be `approved_by_owner`, with commercial use, derivatives, redistribution, game-policy, third-party and music/absence-of-music checks, owner review evidence, and a non-expired license.
 - Only private `gcf-source-media` objects beneath the job owner's storage prefix are signed. Every asset must carry a valid SHA-256. URLs expire after 10 minutes. Responses are no-store. The function evaluates the most recent review per source and returns the rights evidence required by the FFmpeg renderer.
-- The function does not publish, mutate approval state, or mark a render job complete. `.github/workflows/render-job.yml` stages a manual OIDC-protected workflow that fetches the signed assets, verifies SHA-256, builds the renderer rights manifest, renders, runs `render/quality_check.py`, and produces a one-day review artifact. It does not yet upload the final MP4 to Supabase.
+- The function does not publish, mutate approval state, or mark a render job complete. `.github/workflows/render-job.yml` stages a manual OIDC-protected workflow that fetches the signed assets, verifies SHA-256, builds the renderer rights manifest, renders, runs `render/quality_check.py`, and produces a one-day review artifact. It uploads the final MP4 to private Supabase Storage and finalizes a pending owner approval; a real production upload remains to be exercised.
 
 ### Deployment gate
 
 This source depends on the staged `render_jobs` migration. It must be type-checked in CI, reviewed, and deployed only after the migration is applied and a controlled authenticated test succeeds. The function is deployed to the connected Supabase project. A real render job has not yet exercised the complete function-to-worker handoff. CI runs `deno check` against this source and synthetic FFmpeg/QC acceptance tests.
 
 
-## Private output upload and atomic finalization (staged, not deployed)
+## Private output upload and atomic finalization (deployed; production upload pending)
 
 - `supabase/functions/gcf-render-job-output/index.ts` accepts only GitHub OIDC tokens for the repository, owner actor, exact workflow file, and allowed branch. Its audience is `gcf-render-job-output`.
 - `prepare_upload` moves the job into `uploading`, generates a unique owner/package/job-scoped MP4 path, and returns a signed upload token for the private `gcf-video-outputs` bucket.
 - `render/upload_supabase_tus.py` uses the signed token with Supabase's resumable TUS endpoint and 6 MiB chunks. The token is held in runner memory/environment only; it is not a workflow input, artifact, or log value. Two local mocked uploader tests pass, including a multi-chunk transfer and rejection of a path outside the owner/package/job prefix.
 - `finalize` downloads the private object server-side, checks the byte count and SHA-256 against the QC report, and calls `gcf_finalize_render_job_output`.
 - The SQL RPC runs as `SECURITY INVOKER` and is executable only by `service_role`. In one database transaction it creates `video_outputs`, creates a pending `approvals` row bound to the output version and hash, and changes the job to `awaiting_owner`. A repeated identical finalization is idempotent.
-- Current bucket limit is 50 MiB. The QC helper blocks larger outputs. No real output has been uploaded and this code has not been deployed or executed against the live project.
+- Current bucket limit is 50 MiB. The QC helper blocks larger outputs. No real production output has been uploaded yet; the live upload/finalization path still needs a queued production job.
 
 
 ## Owner approval UI (app implementation present; live end-to-end verification pending)
@@ -128,7 +128,7 @@ This source depends on the staged `render_jobs` migration. It must be type-check
 - The runner downloads the quantized model and voice pack from the upstream `model-files-v1.1` release and checks their published SHA-256 digests before inference.
 - It generates a mono 24 kHz PCM WAV and sentence-level SRT cues from the actual generated audio durations. The renderer burns captions into the final MP4 when `captions.srt` exists.
 - The app only sends narration text when there is no pre-recorded WAV asset and an owner-approved script exists for the requested output type. Draft scripts are not used automatically.
-- The model/runtime is open-source (Kokoro model Apache-2.0; kokoro-onnx MIT). The selected Spanish voice is `ef_dora`; preserve upstream model and dependency notices. The CI runtime test must pass before this path is considered verified.
+- The model/runtime is open-source (Kokoro model Apache-2.0; kokoro-onnx MIT). The selected Spanish voice is `ef_dora`; preserve upstream model and dependency notices. The CI runtime test passed on 2026-11-24; a production render is still required to verify the complete narration-to-video path.
 
 
 ## Scheduled queue worker (merged and scheduled; currently idle until a real job is queued)
