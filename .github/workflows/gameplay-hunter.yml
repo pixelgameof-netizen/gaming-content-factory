@@ -109,3 +109,79 @@ jobs:
           cat "$RUNNER_TEMP/gcf-stage-gameplay-result.json"
           jq -e '(.errors | length) == 0 and (.rejected | length) == 0' "$RUNNER_TEMP/gcf-stage-gameplay-result.json" >/dev/null
           unset OIDC_TOKEN OIDC_RESPONSE ACTIONS_ID_TOKEN_REQUEST_TOKEN
+      - name: Inspect staged gameplay media with FFprobe
+        env:
+          SUPABASE_URL: https://pyrrcfegucvxyxlxzowu.supabase.co
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ACTIONS_ID_TOKEN_REQUEST_URL:?GitHub OIDC is unavailable}"
+          : "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:?GitHub OIDC request token is unavailable}"
+          if ! command -v ffprobe >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y ffmpeg
+          fi
+          OIDC_RESPONSE="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            --get --data-urlencode "audience=gcf-inspect-gameplay-candidates" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL")"
+          OIDC_TOKEN="$(jq -er '.value' <<<"$OIDC_RESPONSE")"
+          jq -n '{mode:"prepare"}' > "$RUNNER_TEMP/gcf-inspect-prepare.json"
+          curl --fail --silent --show-error --request POST \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @"$RUNNER_TEMP/gcf-inspect-prepare.json" \
+            "$SUPABASE_URL/functions/v1/gcf-inspect-gameplay-candidates" \
+            --output "$RUNNER_TEMP/gcf-inspect-assets.json"
+          jq -e '.assets | length == 5' "$RUNNER_TEMP/gcf-inspect-assets.json" >/dev/null
+          mkdir -p "$RUNNER_TEMP/gcf-gameplay-qc"
+          : > "$RUNNER_TEMP/gcf-gameplay-qc-results.ndjson"
+          while IFS= read -r item; do
+            ASSET_ID="$(jq -r '.id' <<<"$item")"
+            SOURCE_ID="$(jq -r '.source_id' <<<"$item")"
+            TITLE="$(jq -r '.title' <<<"$item")"
+            EXPECTED_SHA="$(jq -r '.sha256' <<<"$item")"
+            SIGNED_URL="$(jq -r '.signed_url' <<<"$item")"
+            VIDEO_FILE="$RUNNER_TEMP/gcf-gameplay-qc/$SOURCE_ID.webm"
+            curl --fail --location --silent --show-error "$SIGNED_URL" --output "$VIDEO_FILE"
+            ACTUAL_SHA="$(sha256sum "$VIDEO_FILE" | awk '{print $1}')"
+            test "$ACTUAL_SHA" = "$EXPECTED_SHA"
+            PROBE="$(ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height,r_frame_rate -of json "$VIDEO_FILE")"
+            DURATION="$(jq -er '.format.duration | tonumber' <<<"$PROBE")"
+            WIDTH="$(jq -er '[.streams[] | select(.codec_type=="video")][0].width' <<<"$PROBE")"
+            HEIGHT="$(jq -er '[.streams[] | select(.codec_type=="video")][0].height' <<<"$PROBE")"
+            VIDEO_CODEC="$(jq -er '[.streams[] | select(.codec_type=="video")][0].codec_name' <<<"$PROBE")"
+            FPS="$(jq -r '[.streams[] | select(.codec_type=="video")][0].r_frame_rate // "unknown"' <<<"$PROBE")"
+            AUDIO_CODEC="$(jq -r '[.streams[] | select(.codec_type=="audio")][0].codec_name // empty' <<<"$PROBE")"
+            HAS_AUDIO=false
+            if [ -n "$AUDIO_CODEC" ]; then HAS_AUDIO=true; fi
+            jq -n \
+              --arg source_id "$SOURCE_ID" --arg title "$TITLE" --arg sha256 "$ACTUAL_SHA" \
+              --arg video_codec "$VIDEO_CODEC" --arg fps "$FPS" --arg audio_codec "$AUDIO_CODEC" \
+              --argjson duration_seconds "$DURATION" --argjson width "$WIDTH" --argjson height "$HEIGHT" \
+              --argjson has_audio "$HAS_AUDIO" \
+              '{source_id:$source_id,title:$title,sha256:$sha256,duration_seconds:$duration_seconds,width:$width,height:$height,video_codec:$video_codec,fps:$fps,has_audio:$has_audio,audio_codec:(if $audio_codec=="" then null else $audio_codec end)}' \
+              >> "$RUNNER_TEMP/gcf-gameplay-qc-results.ndjson"
+          done < <(jq -c '.assets[]' "$RUNNER_TEMP/gcf-inspect-assets.json")
+          jq -s '.' "$RUNNER_TEMP/gcf-gameplay-qc-results.ndjson" > "$RUNNER_TEMP/gcf-gameplay-qc-results.json"
+          jq -n --slurpfile rows "$RUNNER_TEMP/gcf-gameplay-qc-results.json" '{mode:"report",results:$rows[0]}' \
+            > "$RUNNER_TEMP/gcf-inspect-report.json"
+          curl --fail --silent --show-error --request POST \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @"$RUNNER_TEMP/gcf-inspect-report.json" \
+            "$SUPABASE_URL/functions/v1/gcf-inspect-gameplay-candidates" \
+            --output "$RUNNER_TEMP/gcf-gameplay-qc-report.json"
+          cat "$RUNNER_TEMP/gcf-gameplay-qc-report.json"
+          jq -e '(.rejected | length) == 0 and (.saved | length) == 5' \
+            "$RUNNER_TEMP/gcf-gameplay-qc-report.json" >/dev/null
+          cp "$RUNNER_TEMP/gcf-gameplay-qc-results.json" artifacts/gameplay-media-qc.json
+          unset OIDC_TOKEN OIDC_RESPONSE ACTIONS_ID_TOKEN_REQUEST_TOKEN
+
+      - name: Upload private gameplay technical QC report
+        uses: actions/upload-artifact@v4
+        with:
+          name: minecraft-gameplay-media-qc-${{ github.run_id }}
+          path: artifacts/gameplay-media-qc.json
+          if-no-files-found: error
+          retention-days: 14
