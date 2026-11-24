@@ -39,10 +39,14 @@ def is_relevant_game(game: str, title: str, description: str) -> bool:
         return False
     if game_text in title_text:
         return True
-    return (
-        ("gameplay" in description_text and game_text in description_text)
-        or f"playing {game_text}" in description_text
+    direct_phrases = (
+        f"gameplay of {game_text}",
+        f"gameplay footage of {game_text}",
+        f"{game_text} gameplay",
+        f"playing {game_text}",
+        f"game: {game_text}",
     )
+    return any(phrase in description_text for phrase in direct_phrases)
 
 def parse_games(value: str) -> list[str]:
     """Parse a bounded, de-duplicated list of game names."""
