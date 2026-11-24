@@ -47,6 +47,8 @@ class HunterTests(unittest.TestCase):
         self.assertTrue(is_relevant_game("Minecraft", "File:Gameplay.webm", "Gameplay footage of Minecraft."))
         self.assertFalse(is_relevant_game("Minecraft", "File:Dishonored 2 gameplay clip.webm", "A montage from Dishonored 2."))
         self.assertFalse(is_relevant_game("Minecraft", "File:Luanti 5.10.webm", "Luanti is an alternative to Minecraft."))
+        self.assertFalse(is_relevant_game("Minecraft", "File:Luanti Gameplay.webm", "Gameplay of Luanti, an alternative to Minecraft."))
+        self.assertTrue(is_relevant_game("Minecraft", "File:Gameplay.webm", "Minecraft gameplay footage."))
 
     def test_discover_empty_game_list(self):
         result = discover([])
