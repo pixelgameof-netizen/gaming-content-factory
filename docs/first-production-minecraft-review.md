@@ -59,6 +59,6 @@ Editorial status: `approved` by owner. Target duration: 32 seconds.
 
 ## Render and publication gate
 
-- The first render may be queued only after the synthetic renderer CI passes.
+- Synthetic renderer CI passed on 24 November 2026: [run 45328712623](https://github.com/pixelgameof-netizen/gaming-content-factory/actions/runs/45328712623). The first render is now ready to be queued through the owner's authenticated app session.
 - The rendered MP4 will be stored privately.
 - Publication remains disabled until the owner approves the exact MP4 version and its SHA-256. Any file change invalidates that approval.
