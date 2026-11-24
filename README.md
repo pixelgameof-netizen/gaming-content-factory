@@ -13,6 +13,7 @@ La infraestructura base y los flujos automatizados están implementados, pero **
 - Catálogo de candidatos de gameplay y revisión explícita de derechos.
 - GitHub Actions para descubrir candidatos en Wikimedia Commons.
 - Perfiles configurables de juegos y alias de búsqueda para seis títulos iniciales, con fallback para nombres personalizados.
+- Perfiles técnicos de salida para YouTube, YouTube Shorts, TikTok, Instagram Reels y Facebook Reels; no habilitan publicación automática.
 - Filtros de descubrimiento para CC0, CC BY 3.0 y CC BY 4.0; la detección no equivale a autorización de uso.
 - Cola de trabajos y worker de renderizado con GitHub OIDC.
 - Conversión de fuentes WebM a MP4, generación de narración española con Kokoro ONNX, subtítulos SRT y render FFmpeg.
