@@ -9,6 +9,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 from typing import Any
 
 import requests
@@ -32,11 +33,18 @@ def license_key(value: str) -> str | None:
     value = clean(value)
     if value in ALLOWED_LICENSES:
         return value
-    # Commons metadata can include a versioned label or a localized suffix.
-    for key in ALLOWED_LICENSES:
-        if value == key or value.startswith(key + " "):
-            return key
     return None
+
+
+def is_commons_media_url(value: str) -> bool:
+    parsed = urlparse(value or "")
+    return parsed.scheme == "https" and parsed.hostname == "upload.wikimedia.org"
+
+
+def is_trusted_license_url(value: str) -> bool:
+    parsed = urlparse(value or "")
+    host = (parsed.hostname or "").lower()
+    return parsed.scheme == "https" and host in {"creativecommons.org", "www.creativecommons.org", "commons.wikimedia.org"}
 
 
 def search_commons(game: str, session: requests.Session, limit: int = MAX_RESULTS_PER_GAME) -> list[dict[str, Any]]:
@@ -66,7 +74,9 @@ def search_commons(game: str, session: requests.Session, limit: int = MAX_RESULT
         title = page.get("title", "")
         url = info.get("url", "")
         mime = info.get("mime", "")
-        if not url or not (mime.startswith("video/") or url.lower().split("?")[0].endswith(VIDEO_EXTENSIONS)):
+        if not is_commons_media_url(url):
+            continue
+        if not (mime.startswith("video/") or url.lower().split("?")[0].endswith(VIDEO_EXTENSIONS)):
             continue
 
         meta = info.get("extmetadata") or {}
@@ -74,6 +84,9 @@ def search_commons(game: str, session: requests.Session, limit: int = MAX_RESULT
         license_name = license_key(short)
         # Exclude ShareAlike, NC, ND, unknown, and missing licenses.
         if not license_name:
+            continue
+        license_url = meta.get("LicenseUrl", {}).get("value") or ALLOWED_LICENSES[license_name]
+        if not is_trusted_license_url(license_url):
             continue
 
         description = clean(meta.get("ImageDescription", {}).get("value", ""))
@@ -89,7 +102,7 @@ def search_commons(game: str, session: requests.Session, limit: int = MAX_RESULT
             "thumbnail_url": info.get("thumburl"),
             "mime": mime,
             "license": license_name,
-            "license_url": meta.get("LicenseUrl", {}).get("value") or ALLOWED_LICENSES[license_name],
+            "license_url": license_url,
             "artist": artist,
             "credit": credit,
             "usage_terms": usage,
