@@ -46,9 +46,12 @@ class HunterTests(unittest.TestCase):
         self.assertIn("GTA V", search_terms_for_game("Grand Theft Auto", profiles))
         self.assertEqual(search_terms_for_game("A game not in config", profiles), ["A game not in config"])
 
-    def test_profile_aliases_are_bounded_and_deduplicated(self):
-        profiles = {"example": ["Example", "Example", "Example 2", "", "Example 3", "Example 4"]}
-        self.assertEqual(search_terms_for_game("Example", profiles), ["Example", "Example", "Example 2", "", "Example 3", "Example 4"])
+    def test_loaded_profile_aliases_are_bounded_and_deduplicated(self):
+        _, profiles = load_game_profiles()
+        for terms in profiles.values():
+            self.assertLessEqual(len(terms), 5)
+            self.assertEqual(len(terms), len(set(terms)))
+            self.assertTrue(all(term.strip() for term in terms))
 
     def test_clean(self):
         self.assertEqual(clean("  Minecraft  gameplay\n clip "), "Minecraft gameplay clip")
