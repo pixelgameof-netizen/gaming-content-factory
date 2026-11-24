@@ -55,10 +55,21 @@ def is_commons_media_url(value: str) -> bool:
     return parsed.scheme == "https" and parsed.hostname == "upload.wikimedia.org"
 
 
-def is_trusted_license_url(value: str) -> bool:
+def is_trusted_license_url(value: str, license_name: str) -> bool:
     parsed = urlparse(value or "")
     host = (parsed.hostname or "").lower()
-    return parsed.scheme == "https" and host in {"creativecommons.org", "www.creativecommons.org", "commons.wikimedia.org"}
+    expected_path = {
+        "CC0": "/publicdomain/zero/1.0/",
+        "CC BY 4.0": "/licenses/by/4.0/",
+        "CC BY 3.0": "/licenses/by/3.0/",
+    }.get(license_name)
+    return (
+        parsed.scheme == "https"
+        and host in {"creativecommons.org", "www.creativecommons.org"}
+        and parsed.path.rstrip("/") == (expected_path or "").rstrip("/")
+        and not parsed.username
+        and not parsed.password
+    )
 
 
 def search_commons(game: str, session: requests.Session, limit: int = MAX_RESULTS_PER_GAME) -> list[dict[str, Any]]:
@@ -90,7 +101,8 @@ def search_commons(game: str, session: requests.Session, limit: int = MAX_RESULT
         mime = info.get("mime", "")
         if not is_commons_media_url(url):
             continue
-        if not (mime.startswith("video/") or url.lower().split("?")[0].endswith(VIDEO_EXTENSIONS)):
+        # Require a verified video MIME type; a filename extension alone is insufficient.
+        if not mime.startswith("video/"):
             continue
 
         meta = info.get("extmetadata") or {}
@@ -100,7 +112,7 @@ def search_commons(game: str, session: requests.Session, limit: int = MAX_RESULT
         if not license_name:
             continue
         license_url = meta.get("LicenseUrl", {}).get("value") or ALLOWED_LICENSES[license_name]
-        if not is_trusted_license_url(license_url):
+        if not is_trusted_license_url(license_url, license_name):
             continue
 
         description = clean(meta.get("ImageDescription", {}).get("value", ""))
@@ -171,7 +183,7 @@ def discover(games: list[str], session: requests.Session | None = None) -> dict[
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--games", default="Minecraft, Fortnite, Roblox, Grand Theft Auto, Counter-Strike, Valorant, Apex Legends, The Legend of Zelda, Super Mario, Call of Duty")
+    parser.add_argument("--games", default="Minecraft, Fortnite, Roblox, Grand Theft Auto, Counter-Strike, Valorant")
     parser.add_argument("--output", default="artifacts/gameplay-candidates.json")
     args = parser.parse_args()
     games = parse_games(args.games)
