@@ -1,3 +1,4 @@
+import json
 import pathlib
 import unittest
 
@@ -37,6 +38,18 @@ class RenderQueueContractTests(unittest.TestCase):
             self.assertIn("attempt_count < 3", body)
             self.assertIn("expires_at is null", body)
             self.assertIn("expires_at > now()", body)
+
+    def test_platform_profiles_match_the_database_contract(self):
+        config_path = pathlib.Path(__file__).resolve().parents[1] / "config" / "output_profiles.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        profiles = config["profiles"]
+        allowed = {"youtube", "youtube_shorts", "tiktok", "instagram_reels", "facebook_reels"}
+        self.assertEqual({item["platform"] for item in profiles}, allowed)
+        for item in profiles:
+            expected = (1080, 1920) if item["aspect_ratio"] == "9:16" else (1920, 1080)
+            self.assertEqual((item["width"], item["height"]), expected)
+            self.assertEqual(item["frame_rate"], 30)
+        self.assertFalse(config["generated_output_contract"]["publication_enabled"])
 
     def test_uploading_jobs_are_not_silently_reclaimed(self):
         self.assertNotIn("status = 'uploading'", self.claim_next)
