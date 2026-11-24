@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "default_games": [
+    "Minecraft",
+    "Fortnite",
+    "Roblox",
+    "Grand Theft Auto",
+    "Counter-Strike",
+    "Valorant"
+  ],
+  "profiles": [
+    {
+      "game": "Minecraft",
+      "search_terms": [
+        "Minecraft",
+        "Minecraft Classic",
+        "Minecraft gameplay"
+      ]
+    },
+    {
+      "game": "Fortnite",
+      "search_terms": [
+        "Fortnite",
+        "Fortnite Battle Royale"
+      ]
+    },
+    {
+      "game": "Roblox",
+      "search_terms": [
+        "Roblox",
+        "Roblox gameplay"
+      ]
+    },
+    {
+      "game": "Grand Theft Auto",
+      "search_terms": [
+        "Grand Theft Auto",
+        "GTA V",
+        "GTA 5"
+      ]
+    },
+    {
+      "game": "Counter-Strike",
+      "search_terms": [
+        "Counter-Strike",
+        "Counter-Strike 2",
+        "CS2"
+      ]
+    },
+    {
+      "game": "Valorant",
+      "search_terms": [
+        "Valorant",
+        "VALORANT gameplay"
+      ]
+    }
+  ],
+  "fallback": {
+    "search_terms": [
+      "{game}"
+    ],
+    "rights_status": "candidate",
+    "require_manual_publisher_policy_review": true,
+    "require_manual_third_party_assets_review": true,
+    "require_manual_music_rights_review": true,
+    "auto_download": false,
+    "auto_approve": false
+  }
+}
