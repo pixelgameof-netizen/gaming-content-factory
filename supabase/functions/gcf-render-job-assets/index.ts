@@ -143,8 +143,8 @@ Deno.serve(async (req: Request) => {
     const role = asset.asset_role as string;
 
     if (role === "gameplay" || role === "trailer") {
-      if (!/^scene-\d{2,3}\.mp4$/.test(fileName) || asset.mime_type !== "video/mp4") {
-        return json({ error: "Gameplay/trailer assets must be named scene-NN.mp4 and use video/mp4" }, 422);
+      if (!/^scene-\d{2,3}\.mp4$/.test(fileName) || !["video/mp4", "video/webm"].includes(asset.mime_type ?? "")) {
+        return json({ error: "Gameplay/trailer sources must be MP4 or WebM and map to scene-NN.mp4 output files" }, 422);
       }
       sceneCount++;
     } else if (role === "voiceover") {
@@ -205,7 +205,7 @@ Deno.serve(async (req: Request) => {
     const { data: signed, error: signError } = await admin.storage.from(BUCKET)
       .createSignedUrl(asset.storage_path, URL_TTL_SECONDS, { download: fileName });
     if (signError || !signed?.signedUrl) return json({ error: "Unable to sign a source asset" }, 502);
-    files.push({ file_name: fileName, role, url: signed.signedUrl, sha256: asset.sha256 ?? null, rights });
+    files.push({ file_name: fileName, role, mime_type: asset.mime_type, url: signed.signedUrl, sha256: asset.sha256 ?? null, rights });
   }
 
   const narrationText = typeof manifest.narration_text === "string" ? manifest.narration_text.trim() : "";
