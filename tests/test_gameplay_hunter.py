@@ -9,6 +9,7 @@ from tools.gameplay_hunter.discover_commons import (
 
 
 class HunterTests(unittest.TestCase):
+    # Keep parsing behavior covered for comma, semicolon, and real newline separators.
     def test_license_allowlist_is_conservative(self):
         self.assertEqual(license_key("CC BY 4.0"), "CC BY 4.0")
         self.assertEqual(license_key("CC0"), "CC0")
