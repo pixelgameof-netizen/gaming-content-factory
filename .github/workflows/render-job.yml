@@ -170,6 +170,15 @@ jobs:
           esac
           bash render/render_generic.sh "$EPISODE" "$FORMAT" "artifacts/$EPISODE.mp4"
 
+          # Preserve the exact subtitle source with the private review artifact.
+          # This lets reviewers verify cue text and timing alongside the rendered MP4.
+          if [[ -s "$ROOT/captions.srt" ]]; then
+            cp "$ROOT/captions.srt" "artifacts/$JOB_ID.captions.srt"
+          else
+            echo "Caption file is missing or empty; refusing a subtitle-less review render." >&2
+            exit 1
+          fi
+
       - name: Run media quality gate
         if: steps.prepare.outputs.job_id != ''
         env:
