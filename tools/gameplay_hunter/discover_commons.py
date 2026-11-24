@@ -34,7 +34,7 @@ def parse_games(value: str) -> list[str]:
     """Parse a bounded, de-duplicated list of game names."""
     games: list[str] = []
     seen: set[str] = set()
-    for part in re.split(r"[,;\\n]+", value or ""):
+    for part in re.split(r"[,;\n]+", value or ""):
         game = clean(part)
         key = game.casefold()
         if game and key not in seen and len(games) < MAX_GAMES_PER_RUN:
