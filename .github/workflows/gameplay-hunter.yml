@@ -27,7 +27,7 @@ concurrency:
 jobs:
   discover:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -183,6 +183,7 @@ jobs:
           cat "$RUNNER_TEMP/gcf-gameplay-qc-report.json"
           jq -e '(.rejected | length) == 0 and (.saved | length) == 5' \
             "$RUNNER_TEMP/gcf-gameplay-qc-report.json" >/dev/null
+          mkdir -p artifacts
           cp "$RUNNER_TEMP/gcf-gameplay-qc-results.json" artifacts/gameplay-media-qc.json
           unset OIDC_TOKEN OIDC_RESPONSE ACTIONS_ID_TOKEN_REQUEST_TOKEN
 
