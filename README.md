@@ -1,43 +1,56 @@
 # Gaming Content Factory
 
-Infraestructura cloud para producir contenido gaming en formato vertical.
+Plataforma cloud para descubrir material de videojuegos, revisar derechos y producir videos cortos con narración, subtítulos y montaje automatizado.
 
-## Estado actual
+## Estado real — 24 de noviembre de 2026
 
-- Existe una prueba manual de renderizado FFmpeg de 12 segundos (gráficos originales; no es el Short).
-- Existe el paquete de preproducción del Short 01 de GTA VI: plan de cinco escenas, subtítulos provisionales, guía de derechos y script FFmpeg 1080x1920/30 fps.
-- **El Short final todavía no existe.** Faltan los cinco archivos de vídeo aprobados y la narración final.
-- Los tiempos de subtítulos son provisionales y deben ajustarse escuchando la voz definitiva.
+La infraestructura base y los flujos automatizados están implementados, pero **la primera producción real todavía no ha completado el ciclo de renderizado y aprobación**.
 
-## Seguridad y costes
+### Ya implementado
 
-- El repositorio es público por decisión temporal del propietario: todo el código y texto editorial aquí subido puede ser visto por cualquiera.
-- No guardar claves API, tokens, contraseñas, claves de Supabase, datos personales ni archivos multimedia privados.
-- No hay publicación automática ni tareas programadas.
-- No se ha conectado ningún servicio externo nuevo para esta etapa.
-- No incluir gameplay, tráileres, música ni material promocional de GTA VI sin revisar y documentar los permisos correspondientes.
-- Los clips ambientales de terceros nunca deben presentarse como gameplay ni como material oficial de Rockstar.
-- La publicación requiere aprobación humana independiente del render.
+- Aplicación de gestión en Floot, conectada a Supabase.
+- Buckets privados para medios de origen y videos finales.
+- Catálogo de candidatos de gameplay y revisión explícita de derechos.
+- GitHub Actions para descubrir candidatos en Wikimedia Commons.
+- Filtros de descubrimiento para CC0, CC BY 3.0 y CC BY 4.0; la detección no equivale a autorización de uso.
+- Cola de trabajos y worker de renderizado con GitHub OIDC.
+- Conversión de fuentes WebM a MP4, generación de narración española con Kokoro ONNX, subtítulos SRT y render FFmpeg.
+- Control de calidad técnico y registro privado del resultado.
+- La publicación automática permanece desactivada.
 
-## Prueba de render
+### Validaciones que ya pasaron
 
-1. Abrir **Actions**.
-2. Elegir **Render preview (manual)**.
-3. Pulsar **Run workflow**.
-4. La prueba instala FFmpeg en un runner Ubuntu, genera 12 segundos a 720x1280/30 fps y valida el archivo.
+- Gameplay Hunter: ejecución correcta con cinco clips Minecraft preparados para revisión privada.
+- Inspección técnica: SHA-256, streams de video/audio y fotogramas de revisión.
+- Generación de voz y subtítulos en español: prueba de GitHub Actions aprobada.
+- Renderizador genérico: prueba sintética de GitHub Actions aprobada.
 
-## Short 01 — paquete de producción
+Estas pruebas validan componentes individuales. **No significan que ya exista un MP4 final de la primera producción.**
 
-Consulta `production/short-01/scene-plan.json` para el guion visual y el desglose de escenas. Los subtítulos provisionales están en `production/short-01/captions.srt`. La carpeta `production/short-01/media/` describe los archivos de entrada requeridos y el control de derechos.
+### Pendiente para la primera entrega
 
-Cuando los cinco clips y la narración aprobados estén disponibles en esa carpeta, el script `render/render_short_01.sh` puede generar un MP4 vertical de 51 segundos:
+1. Crear el trabajo real desde la sesión autenticada del propietario en la aplicación.
+2. Ejecutar el worker con ese trabajo en cola.
+3. Verificar el MP4 generado, su narración, subtítulos, imagen, sonido y duración.
+4. Confirmar que el archivo queda privado y se puede revisar desde móvil y PC.
+5. Completar la aprobación del archivo exacto mediante su SHA-256.
 
-```bash
-bash render/render_short_01.sh production/short-01 short-01-preview.mp4
-```
+## Automatizaciones actuales
 
-El script requiere FFmpeg y ffprobe. No inventa ni descarga recursos, y se detiene si faltan los archivos obligatorios. La música es opcional; si se usa, debe ser original o estar licenciada para el uso previsto.
+- `.github/workflows/gameplay-hunter.yml`: búsqueda diaria programada y ejecución manual. Acepta hasta seis consultas de juegos y guarda candidatos; el paso de staging e inspección actual prepara un conjunto curado de Minecraft.
+- `.github/workflows/render-job.yml`: worker programado cada diez minutos y ejecución manual. Si no hay trabajos en cola, termina sin renderizar.
+- `.github/workflows/test-tts.yml`: prueba de voz y subtítulos.
+- `.github/workflows/test-render-generic.yml`: prueba sintética del renderizador.
 
-## Siguiente etapa
+## Límites y seguridad
 
-Preparar una entrada privada de medios en la infraestructura cloud existente, verificar el acceso y los límites gratuitos, y conectar el render de GitHub Actions a esos archivos sin exponerlos en este repositorio público. Después: render, control de calidad y revisión humana. La publicación seguirá siendo una acción separada y requerirá autorización explícita.
+- Un candidato encontrado en Commons no está automáticamente autorizado. Deben revisarse licencia, atribución, políticas del editor del juego y elementos de terceros.
+- No se deben incorporar clips, música o tráileres solo por estar disponibles en Internet.
+- Los medios y resultados de producción deben permanecer en almacenamiento privado.
+- No guardar claves, tokens ni secretos en este repositorio.
+- El repositorio es actualmente **público**: el código y la documentación aquí alojados son visibles públicamente. No contiene archivos multimedia privados ni debe contener credenciales.
+- No publicar automáticamente. La aprobación del propietario debe referirse a la versión exacta del MP4 y su SHA-256; cualquier cambio invalida esa aprobación.
+
+## Operación
+
+Consulta [docs/operations-runbook.md](docs/operations-runbook.md) para el flujo operativo, las pruebas existentes y los criterios de cierre.
