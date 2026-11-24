@@ -11,7 +11,7 @@ class HunterTests(unittest.TestCase):
         self.assertIsNone(license_key(""))
 
     def test_clean(self):
-        self.assertEqual(clean("  Minecraft  gameplay\\n clip "), "Minecraft gameplay clip")
+        self.assertEqual(clean("  Minecraft  gameplay\n clip "), "Minecraft gameplay clip")
 
     def test_discover_empty_game_list(self):
         result = discover([])
