@@ -1,6 +1,6 @@
 # First production review — Minecraft short
 
-**Status: script v3 approved by owner; source rights remain pending final visual review. Not approved for rendering or publication yet.**
+**Status: script v3 and all five source rights reviews approved by owner. Ready for the first private render after renderer CI passes. Not approved for publication.**
 
 ## Package
 
@@ -10,7 +10,7 @@
 - Narration: original Spanish voiceover (Kokoro ONNX, voice `ef_dora`)
 - Music: none
 - Gameplay source audio: all five downloaded files were inspected; no audio stream was present
-- All five originals are stored privately in Supabase Storage as `rights_status=candidate`
+- All five originals are stored privately in Supabase Storage; all five media assets and rights reviews are now owner-approved
 
 ## Downloaded gameplay assets
 
@@ -24,17 +24,18 @@ All five files identify **Xbox México** as author and are extracted from the pu
 | 4 | [Minecraft Beta Gameplay](https://commons.wikimedia.org/wiki/File:Minecraft_Beta_Gameplay.webm) | 01:08 | 13.950 s | VP9, 1920×1080, no audio |
 | 5 | [Minecraft Gameplay](https://commons.wikimedia.org/wiki/File:Minecraft_Gameplay.webm) | 01:24 | 8.908 s | VP9, 1482×784, no audio |
 
-The automated inspection downloaded each stored object, checked SHA-256 against the registered object, and inspected the media streams using PyAV. See [GitHub Actions run 45316014585](https://github.com/pixelgameof-netizen/gaming-content-factory/actions/runs/45316014585).
+The automated inspection downloaded each stored object, checked SHA-256 against the registered object, and inspected the media streams using PyAV. See [technical QC and visual review workflow run 45328386210](https://github.com/pixelgameof-netizen/gaming-content-factory/actions/runs/45328386210).
 
-## Rights context to review
+## Rights context and owner approval
 
-1. The five Commons pages list CC BY 3.0 and CC BY 4.0 and identify Xbox México as author. Proposed attribution should use the CC BY 4.0 link: https://creativecommons.org/licenses/by/4.0/
+1. The five Commons pages list CC BY 3.0 and CC BY 4.0 and identify Xbox México as author. Attribution will use the CC BY 4.0 link: https://creativecommons.org/licenses/by/4.0/
 2. The archived Wikimedia Commons deletion discussion for the Xbox México Minecraft files was closed as “Kept” on 30 July 2025. The discussion records that the CC BY option had been intentionally selected on the Xbox México YouTube source. This is supporting context, not a guarantee of every independent right.
 3. The [official Minecraft Usage Guidelines](https://www.minecraft.net/en-us/usage-guidelines) permit gameplay videos and ad monetization when sufficient unique creator content/commentary is added. They prohibit implying Mojang/Microsoft endorsement and require permission for third-party music/audio.
-4. The downloaded excerpts contain no audio stream. The source's visual content, game/publisher policy, third-party visual elements, and final attribution presentation still require owner review.
-5. The owner has approved the original Spanish narration/edit plan, and the records now reflect that no source audio or third-party music will be used and the Minecraft gameplay policy has been checked. **The five rights reviews remain `candidate`** because the third-party visual-element check is not complete. Do not render or publish until that check is resolved and all five reviews are explicitly approved.
+4. The downloaded excerpts contain no audio stream. No third-party music will be used. The plan adds original Spanish narration and an original edit.
+5. A visual review artifact was generated with two sampled frames (at 2s and 6s) from each clip. The inspected samples show Minecraft gameplay/HUD, with no third-party brand overlays, advertisements, or separate third-party visual inserts.
+6. The owner approved script v3 and all five rights reviews on 24 November 2026 UTC. The five `rights_reviews` are `approved_by_owner`; the five `media_assets` are `rights_status=approved`. This records the owner's approval based on the evidence above; it is not a legal guarantee for any independent rights not represented in the reviewed sources.
 
-## Proposed attribution
+## Required attribution
 
 For each used clip, credit **Xbox México**, link its Commons file page, link the CC BY 4.0 license, and state the actual edits applied (for example: trimmed, reframed, transcoded, narrated, captioned). Do not suggest endorsement or affiliation with Xbox/Microsoft. Final change descriptions must be updated after the actual edit.
 
@@ -56,8 +57,8 @@ Editorial status: `approved` by owner. Target duration: 32 seconds.
 - No third-party music. The original source audio tracks are absent.
 - Any title/credit card should sit outside the gameplay area.
 
-## Remaining owner review
+## Render and publication gate
 
-- Complete the visual third-party-asset check for the five source clips, including any visible overlays, branding, skins, or other external elements that may require separate clearance.
-- Confirm final per-clip attribution details after editing.
-- Only after all five rights reviews pass may the app create a render job. The output will remain private and unpublished pending approval of the exact MP4 version and SHA-256.
+- The first render may be queued only after the synthetic renderer CI passes.
+- The rendered MP4 will be stored privately.
+- Publication remains disabled until the owner approves the exact MP4 version and its SHA-256. Any file change invalidates that approval.
