@@ -1,4 +1,5 @@
 name: Discover licensed gameplay candidates
+# Owner-initiated push validation is authenticated by the importer OIDC allowlist.
 
 on:
   push:
