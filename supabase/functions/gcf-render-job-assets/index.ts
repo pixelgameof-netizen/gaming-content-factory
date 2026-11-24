@@ -136,7 +136,7 @@ Deno.serve(async (req: Request) => {
 
   let sceneCount = 0;
   let voiceCount = 0;
-  const files: Array<{ file_name: string; role: string; url: string; sha256: string | null; rights: Record<string, unknown> }> = [];
+  const files: Array<{ file_name: string; role: string; mime_type: string | null; url: string; sha256: string | null; rights: Record<string, unknown> }> = [];
   for (const item of requested) {
     const asset = byId.get(item.asset_id as string)!;
     const fileName = item.file_name as string;
