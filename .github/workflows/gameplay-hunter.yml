@@ -51,7 +51,7 @@ jobs:
           python - "$GAME_QUERIES" >> "$GITHUB_OUTPUT" <<'PY'
           import re, sys
           requested = sys.argv[1].strip()
-          games = [part.strip().casefold() for part in re.split(r"[,;\\n]+", requested) if part.strip()]
+          games = [part.strip().casefold() for part in re.split(r"[,;\n]+", requested) if part.strip()]
           if not requested:
               games = ["minecraft", "fortnite", "roblox", "grand theft auto", "counter-strike", "valorant"]
           print("stage_curated_minecraft=" + ("true" if "minecraft" in games else "false"))
