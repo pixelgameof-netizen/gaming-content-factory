@@ -24,6 +24,33 @@ ALLOWED_LICENSES = {
 VIDEO_EXTENSIONS = (".webm", ".ogv", ".ogg", ".mp4", ".mkv", ".mov")
 MAX_RESULTS_PER_GAME = 8
 MAX_GAMES_PER_RUN = 6
+DEFAULT_PROFILES_PATH = Path(__file__).resolve().parents[2] / "config" / "game_profiles.json"
+
+
+def load_game_profiles(path: Path = DEFAULT_PROFILES_PATH) -> tuple[list[str], dict[str, list[str]]]:
+    """Load canonical game names and bounded, de-duplicated search aliases."""
+    try:
+        config = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return ["Minecraft", "Fortnite", "Roblox", "Grand Theft Auto", "Counter-Strike", "Valorant"], {}
+    if config.get("schema_version") != 1:
+        raise ValueError("Unsupported game profile schema version")
+    defaults = config.get("default_games", [])
+    profiles: dict[str, list[str]] = {}
+    for item in config.get("profiles", []):
+        game = clean(str(item.get("game", "")))
+        terms = item.get("search_terms", [])
+        if not game or not isinstance(terms, list):
+            continue
+        cleaned = [clean(str(term)) for term in terms]
+        profiles[game.casefold()] = list(dict.fromkeys(term for term in cleaned if term))[:5]
+    return [clean(str(game)) for game in defaults if clean(str(game))][:MAX_GAMES_PER_RUN], profiles
+
+
+def search_terms_for_game(game: str, profiles: dict[str, list[str]]) -> list[str]:
+    """Use configured aliases for known titles; preserve custom game names verbatim."""
+    terms = profiles.get(clean(game).casefold(), [])
+    return terms or [clean(game)]
 
 
 def clean(value: str) -> str:
@@ -165,9 +192,12 @@ def search_commons(game: str, session: requests.Session, limit: int = MAX_RESULT
     return candidates
 
 
-def discover(games: list[str], session: requests.Session | None = None) -> dict[str, Any]:
+def discover(games: list[str], session: requests.Session | None = None,
+             profiles: dict[str, list[str]] | None = None) -> dict[str, Any]:
     http = session or requests.Session()
     http.headers.update({"User-Agent": USER_AGENT})
+    if profiles is None:
+        _, profiles = load_game_profiles()
     all_candidates: list[dict[str, Any]] = []
     errors: list[dict[str, str]] = []
     seen: set[str] = set()
@@ -175,14 +205,21 @@ def discover(games: list[str], session: requests.Session | None = None) -> dict[
         game = clean(game)
         if not game:
             continue
-        try:
-            for item in search_commons(game, http):
-                if item["source_page"] not in seen:
-                    seen.add(item["source_page"])
-                    all_candidates.append(item)
-        except (requests.RequestException, ValueError, KeyError) as exc:
-            errors.append({"game": game, "error": str(exc)[:500]})
-        time.sleep(0.35)
+        game_count = 0
+        for term in search_terms_for_game(game, profiles):
+            try:
+                for item in search_commons(term, http):
+                    if item["source_page"] not in seen and game_count < MAX_RESULTS_PER_GAME:
+                        item["game_query"] = game
+                        item["matched_search_term"] = term
+                        seen.add(item["source_page"])
+                        all_candidates.append(item)
+                        game_count += 1
+            except (requests.RequestException, ValueError, KeyError) as exc:
+                errors.append({"game": game, "search_term": term, "error": str(exc)[:500]})
+            if game_count >= MAX_RESULTS_PER_GAME:
+                break
+            time.sleep(0.35)
     return {
         "schema_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -200,14 +237,14 @@ def discover(games: list[str], session: requests.Session | None = None) -> dict[
         "errors": errors,
     }
 
-
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--games", default="Minecraft, Fortnite, Roblox, Grand Theft Auto, Counter-Strike, Valorant")
+    default_games, profiles = load_game_profiles()
+    parser.add_argument("--games", default=", ".join(default_games))
     parser.add_argument("--output", default="artifacts/gameplay-candidates.json")
     args = parser.parse_args()
     games = parse_games(args.games)
-    result = discover(games)
+    result = discover(games, profiles=profiles)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
