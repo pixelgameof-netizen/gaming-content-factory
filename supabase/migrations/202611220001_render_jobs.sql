@@ -1,5 +1,5 @@
 -- Dynamic render queue, additive and owner-scoped.
--- This migration is staged in the hardening PR branch; it is NOT applied to Supabase.
+-- This migration is applied to the connected Supabase project. Keep this file as the reproducible schema source.
 
 create table if not exists public.render_jobs (
   id uuid primary key default gen_random_uuid(),
@@ -340,7 +340,7 @@ begin
     from jsonb_array_elements(p_manifest->'assets') as entries(value);
   if v_asset_count < 1 or v_asset_count > 20
      or v_asset_count <> v_unique_ids or v_asset_count <> v_unique_names then
-    raise exception 'manifest must contain 2 to 20 unique assets and filenames';
+    raise exception 'manifest must contain 1 to 20 unique assets and filenames';
   end if;
 
   if not exists (
