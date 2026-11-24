@@ -1,6 +1,6 @@
 # First production review — Minecraft short
 
-**Status: prepared for owner review; not approved for rendering or publication.**
+**Status: script v3 approved by owner; source rights remain pending final visual review. Not approved for rendering or publication yet.**
 
 ## Package
 
@@ -32,19 +32,19 @@ The automated inspection downloaded each stored object, checked SHA-256 against 
 2. The archived Wikimedia Commons deletion discussion for the Xbox México Minecraft files was closed as “Kept” on 30 July 2025. The discussion records that the CC BY option had been intentionally selected on the Xbox México YouTube source. This is supporting context, not a guarantee of every independent right.
 3. The [official Minecraft Usage Guidelines](https://www.minecraft.net/en-us/usage-guidelines) permit gameplay videos and ad monetization when sufficient unique creator content/commentary is added. They prohibit implying Mojang/Microsoft endorsement and require permission for third-party music/audio.
 4. The downloaded excerpts contain no audio stream. The source's visual content, game/publisher policy, third-party visual elements, and final attribution presentation still require owner review.
-5. No review has been approved. Keep all five rights reviews at `candidate`; do not render or publish until the owner records approval.
+5. The owner has approved the original Spanish narration/edit plan, and the records now reflect that no source audio or third-party music will be used and the Minecraft gameplay policy has been checked. **The five rights reviews remain `candidate`** because the third-party visual-element check is not complete. Do not render or publish until that check is resolved and all five reviews are explicitly approved.
 
 ## Proposed attribution
 
 For each used clip, credit **Xbox México**, link its Commons file page, link the CC BY 4.0 license, and state the actual edits applied (for example: trimmed, reframed, transcoded, narrated, captioned). Do not suggest endorsement or affiliation with Xbox/Microsoft. Final change descriptions must be updated after the actual edit.
 
-## Script v3 — draft only
+## Script v3 — approved
 
 **Title:** Minecraft: cinco etapas, una idea que no cambió
 
 > Antes de ser el mundo que conoces, Minecraft fue apenas una idea hecha de bloques. Cave Game: terreno simple, pocas piezas y todo por descubrir. Después, Classic convirtió esa prueba en libertad para construir. Alpha y Beta fueron dando forma a la aventura. Y lo increíble es que, con millones de posibilidades, la esencia sigue igual: aparecer en un mundo nuevo y decidir qué hacer con él. ¿Qué versión elegirías?
 
-Editorial status: `draft`. Owner approval is still required.
+Editorial status: `approved` by owner. Target duration: 32 seconds.
 
 ## Planned edit
 
@@ -56,8 +56,8 @@ Editorial status: `draft`. Owner approval is still required.
 - No third-party music. The original source audio tracks are absent.
 - Any title/credit card should sit outside the gameplay area.
 
-## Owner decisions required
+## Remaining owner review
 
-- Review and explicitly approve or reject the five source rights reviews, including the attribution and third-party visual/publisher checks.
-- Approve or revise script v3.
-- Only after both approvals may the app create a render job. The output will remain private and unpublished pending approval of the exact MP4 version and SHA-256.
+- Complete the visual third-party-asset check for the five source clips, including any visible overlays, branding, skins, or other external elements that may require separate clearance.
+- Confirm final per-clip attribution details after editing.
+- Only after all five rights reviews pass may the app create a render job. The output will remain private and unpublished pending approval of the exact MP4 version and SHA-256.
