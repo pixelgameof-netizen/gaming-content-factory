@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/gameplay-hunter.yml"
       - "tools/gameplay_hunter/**"
+      - "config/game_profiles.json"
   workflow_dispatch:
     inputs:
       games:
