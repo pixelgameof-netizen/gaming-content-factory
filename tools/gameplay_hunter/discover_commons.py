@@ -41,12 +41,11 @@ def is_relevant_game(game: str, title: str, description: str) -> bool:
         return True
     escaped = re.escape(game_text)
     direct_gameplay = re.compile(
-        rf"\b(?:gameplay(?:\s+footage)?|game)\s+(?:of\s+|:\s*)?{escaped}\b",
+        rf"\\b(?:gameplay|game)\\b.{{0,60}}\\b{escaped}\\b",
         re.IGNORECASE,
     )
-    playing_game = re.compile(rf"\bplaying\s+{escaped}\b", re.IGNORECASE)
+    playing_game = re.compile(rf"\\bplaying\\s+{escaped}\\b", re.IGNORECASE)
     return bool(direct_gameplay.search(description_text) or playing_game.search(description_text))
-
 
 def parse_games(value: str) -> list[str]:
     """Parse a bounded, de-duplicated list of game names."""
