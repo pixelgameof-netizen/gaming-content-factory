@@ -4,14 +4,14 @@ Status: engineering plan; not yet deployed. This document does not authorize a m
 
 ## Current verified state
 
-- Supabase has owner-scoped `content_packages`, `media_assets`, `rights_reviews`, `video_outputs`, `approvals`, and `publication_jobs`. The PR stages (but does not apply) `supabase/migrations/202611220001_render_jobs.sql`, an owner-scoped render queue with constrained lifecycle states, package/output composite foreign keys, private owner-read RLS, and service-role-only writes. It includes `output_type` (`short`/`long_video`), destination platform (`youtube`, `youtube_shorts`, `tiktok`, `instagram_reels`, `facebook_reels`), aspect ratio, manifest, lifecycle, and eventual output reference.
+- Supabase has owner-scoped `content_packages`, `media_assets`, `rights_reviews`, `video_outputs`, `approvals`, and `publication_jobs`. The migration `supabase/migrations/202611220001_render_jobs.sql` is applied in the connected Supabase project and versioned in this repository; it creates an owner-scoped render queue with constrained lifecycle states, package/output composite foreign keys, private owner-read RLS, and service-role-only writes. It includes `output_type` (`short`/`long_video`), destination platform (`youtube`, `youtube_shorts`, `tiktok`, `instagram_reels`, `facebook_reels`), aspect ratio, manifest, lifecycle, and eventual output reference.
 - `gcf-ingest-gameplay` authenticates the caller, restricts upstream downloads to Wikimedia's upload host, and stores ingested files privately as rights candidates.
 - `gcf-render-assets` is currently a legacy `short-01` implementation: fixed owner, fixed storage prefix, fixed filenames, and a gateway token. The live `rights_reviews.status` constraint allows `approved_by_owner` (not `approved`); `media_assets.rights_status` separately allows `approved`. Any dynamic rights gate must check both records and the publisher/game-policy, third-party-assets, and music booleans before creating a job.
 - `gcf-upload-media` is also fixed to `short-01` and a fixed allowlist.
 - The generic FFmpeg renderer consumes local episode folders. Its dynamic GitHub workflow fetches approved private assets using short-lived URLs, verifies their SHA-256 values, can synthesize Spanish narration from an explicitly owner-approved script with Kokoro ONNX (`ef_dora` voice) and sentence-timed SRT captions, renders, runs media QC, uploads the MP4 to private Supabase Storage using a signed resumable TUS token, and asks a server-side finalizer to verify the stored bytes and register the output. The TTS model and voice-pack release assets are SHA-256 pinned. A one-day GitHub review artifact remains as a temporary secondary copy.
-- `render/quality_check.py` now validates MP4 container readability, required H.264 video and AAC audio streams, target dimensions, 23–60 fps, duration (over 1 and at most 900 seconds), audio/video duration agreement, and a streaming SHA-256 digest. It writes a machine-readable QC report. The GitHub CI runs `45266441850` and `45267064405` passed on earlier intermediate revisions, including Deno type-checking, a positive synthetic render, and rejection of a silent MP4. The latest migration, TUS uploader, and unit-test edits have not yet been exercised by a fresh GitHub Actions run.
+- `render/quality_check.py` now validates MP4 container readability, required H.264 video and AAC audio streams, target dimensions, 23–60 fps, duration (over 1 and at most 900 seconds), audio/video duration agreement, and a streaming SHA-256 digest. It writes a machine-readable QC report. The GitHub CI runs `45266441850` and `45267064405` passed on earlier intermediate revisions, including Deno type-checking, a positive synthetic render, and rejection of a silent MP4. The current approval-contract tests, TUS uploader tests, Deno type checks, and synthetic renderer tests passed in the latest successful generic-render workflow; continue rerunning CI after future changes.
 - The output bucket is private and currently capped at 50 MiB; the QC gate enforces that cap. Long-form output above this size is blocked until a storage-limit change is reviewed.
-- Worker queue access uses restricted service-role-only RPCs, so the new queue table does not need to be exposed to the public Data API for worker handoff. The Floot UI now has owner rights-confirmation controls, authenticated render-job creation/status, private output preview, and hash-bound approval/rejection through RPCs; those controls become active only after the staged migration is applied.
+- Worker queue access uses restricted service-role-only RPCs, so the new queue table does not need to be exposed to the public Data API for worker handoff. The Floot app source includes owner rights-confirmation controls, authenticated render-job creation/status, private output preview, and hash-bound approval/rejection through RPCs. The database migration and worker Edge Functions are deployed. The live UI still requires an owner-session end-to-end verification after Floot quota permits preview operations.
 - CI media is synthetic; it is not an end-to-end gameplay test.
 
 ## Target job contract
@@ -101,7 +101,7 @@ A new Edge Function source file is staged at `supabase/functions/gcf-render-job-
 
 ### Deployment gate
 
-This source depends on the staged `render_jobs` migration. It must be type-checked in CI, reviewed, and deployed only after the migration is applied and a controlled authenticated test succeeds. The function is not deployed to Supabase yet. CI runs `deno check` against this source and synthetic FFmpeg/QC acceptance tests.
+This source depends on the staged `render_jobs` migration. It must be type-checked in CI, reviewed, and deployed only after the migration is applied and a controlled authenticated test succeeds. The function is deployed to the connected Supabase project. A real render job has not yet exercised the complete function-to-worker handoff. CI runs `deno check` against this source and synthetic FFmpeg/QC acceptance tests.
 
 
 ## Private output upload and atomic finalization (staged, not deployed)
@@ -114,7 +114,7 @@ This source depends on the staged `render_jobs` migration. It must be type-check
 - Current bucket limit is 50 MiB. The QC helper blocks larger outputs. No real output has been uploaded and this code has not been deployed or executed against the live project.
 
 
-## Owner approval UI (staged, not deployed)
+## Owner approval UI (app implementation present; live end-to-end verification pending)
 
 - `gcf_list_pending_approvals` returns only pending outputs owned by the authenticated user and optionally filtered to a package.
 - `gcf_decide_render_output` locks the approval/output rows and requires exact approval ID, output ID, SHA-256, version, platform, passed QC, and owner-scoped private storage path before recording `approved` or `rejected`.
@@ -122,7 +122,7 @@ This source depends on the staged `render_jobs` migration. It must be type-check
 - The signed preview URL remains in page memory only and expires after ten minutes.
 
 
-## Spanish narration and captions (staged, CI verification pending)
+## Spanish narration and captions (CI verification passed; production render pending)
 
 - `render/generate_voiceover.py` uses the Kokoro ONNX model with Spanish G2P from Misaki and the `ef_dora` Spanish voice.
 - The runner downloads the quantized model and voice pack from the upstream `model-files-v1.1` release and checks their published SHA-256 digests before inference.
@@ -131,12 +131,12 @@ This source depends on the staged `render_jobs` migration. It must be type-check
 - The model/runtime is open-source (Kokoro model Apache-2.0; kokoro-onnx MIT). The selected Spanish voice is `ef_dora`; preserve upstream model and dependency notices. The CI runtime test must pass before this path is considered verified.
 
 
-## Scheduled queue worker (staged, not active until merge/deploy)
+## Scheduled queue worker (merged and scheduled; currently idle until a real job is queued)
 
 - The render workflow runs every 10 minutes on the repository default branch and can still be manually dispatched with an explicit job UUID.
 - For scheduled runs, the OIDC-authenticated asset function calls `gcf_claim_next_render_job()`, which uses `FOR UPDATE SKIP LOCKED` to atomically claim one unexpired queued job and move it to `preparing`. Manual dispatches use `gcf_claim_render_job(job_id)` so the same job cannot be claimed by both paths.
 - Stale `preparing` jobs older than 30 minutes can be reclaimed, up to three attempts. Jobs already in `uploading` are not auto-reclaimed; interrupted upload recovery and orphan cleanup remain pending.
-- No GitHub PAT, Actions dispatch secret, or third-party scheduler is needed. The scheduled worker becomes active only after the workflow is merged to the default branch and the SQL migration plus Edge Function are deployed.
+- No GitHub PAT, Actions dispatch secret, or third-party scheduler is needed. The scheduled worker is present on the default branch and runs every ten minutes. It remains idle when no job is queued; the SQL migration and Edge Functions are deployed.
 
 
 ## Owner-captured gameplay ingestion
