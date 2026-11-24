@@ -71,6 +71,12 @@ The approval layer is hash-bound and owner-scoped:
 - The owner can review the output from a phone and a desktop browser.
 - No publishing action occurs without separate, explicit approval of the exact output hash.
 
+## Security advisor notes
+
+The 2026-11-24 Supabase security advisor reports four authenticated-callable `SECURITY DEFINER` RPCs: `gcf_create_render_job`, `gcf_decide_render_output`, `gcf_list_pending_approvals`, and `gcf_list_render_jobs`. This is intentional for the current owner-scoped API: each function must derive the owner from `auth.uid()`, enforce owner/package/output matching, and pin `search_path` to the empty path. Regression tests now assert these controls. Do not blindly revoke these grants or change them to `SECURITY INVOKER`, as that would break the authenticated app workflow; review the function bodies and grants instead.
+
+The advisor also reports leaked-password protection disabled. This setting has not been changed; it requires an explicit project-owner decision. The performance advisor currently lists unused indexes, including recently added render-job indexes. Do not drop indexes based on an early/low-traffic usage snapshot; revisit after real workload data exists. The repository is currently public, so never commit credentials, signed URLs, private media, or owner data.
+
 ## Known gaps before declaring the whole platform complete
 
 1. **Real end-to-end render:** no production MP4 has yet been confirmed in the output bucket.
