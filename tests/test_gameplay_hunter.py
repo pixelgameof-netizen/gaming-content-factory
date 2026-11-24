@@ -1,5 +1,6 @@
 import sys
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -63,6 +64,32 @@ class HunterTests(unittest.TestCase):
         self.assertFalse(is_relevant_game("Minecraft", "File:Luanti 5.10.webm", "Luanti is an alternative to Minecraft."))
         self.assertFalse(is_relevant_game("Minecraft", "File:Luanti Gameplay.webm", "Gameplay of Luanti, an alternative to Minecraft."))
         self.assertTrue(is_relevant_game("Minecraft", "File:Gameplay.webm", "Minecraft gameplay footage."))
+
+    def test_discover_uses_profile_aliases_and_keeps_canonical_game_label(self):
+        calls = []
+
+        def fake_search(term, session, limit=8):
+            calls.append(term)
+            return [{
+                "source_page": f"https://commons.wikimedia.org/wiki/File:{term.replace(' ', '_')}.webm",
+                "game_query": term,
+                "title": f"File:{term}.webm",
+            }]
+
+        with patch("tools.gameplay_hunter.discover_commons.search_commons", side_effect=fake_search), \
+             patch("tools.gameplay_hunter.discover_commons.time.sleep"):
+            result = discover(
+                ["Grand Theft Auto"],
+                profiles={"grand theft auto": ["Grand Theft Auto", "GTA V"]},
+            )
+
+        self.assertEqual(calls, ["Grand Theft Auto", "GTA V"])
+        self.assertEqual(result["candidate_count"], 2)
+        self.assertTrue(all(item["game_query"] == "Grand Theft Auto" for item in result["candidates"]))
+        self.assertEqual(
+            [item["matched_search_term"] for item in result["candidates"]],
+            ["Grand Theft Auto", "GTA V"],
+        )
 
     def test_discover_empty_game_list(self):
         result = discover([])
