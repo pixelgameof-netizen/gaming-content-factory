@@ -1,6 +1,11 @@
 name: Render approved package from Supabase
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "render/upload_supabase_tus.py"
+      - ".github/workflows/render-job.yml"
   workflow_dispatch:
     inputs:
       job_id:
