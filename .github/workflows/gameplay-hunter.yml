@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: gameplay-hunter
@@ -46,3 +47,27 @@ jobs:
           path: artifacts/gameplay-candidates.json
           if-no-files-found: error
           retention-days: 14
+
+      - name: Register candidate metadata in private Supabase catalog
+        env:
+          SUPABASE_URL: https://pyrrcfegucvxyxlxzowu.supabase.co
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ACTIONS_ID_TOKEN_REQUEST_URL:?GitHub OIDC is unavailable}"
+          : "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:?GitHub OIDC request token is unavailable}"
+          OIDC_RESPONSE="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            --get --data-urlencode "audience=gcf-import-gameplay-candidates" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL")"
+          OIDC_TOKEN="$(jq -er '.value' <<<"$OIDC_RESPONSE")"
+          jq '{candidates: .candidates}' artifacts/gameplay-candidates.json \
+            > "$RUNNER_TEMP/gcf-hunter-import.json"
+          curl --fail --silent --show-error --request POST \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @"$RUNNER_TEMP/gcf-hunter-import.json" \
+            "$SUPABASE_URL/functions/v1/gcf-import-gameplay-candidates" \
+            --output "$RUNNER_TEMP/gcf-hunter-import-result.json"
+          cat "$RUNNER_TEMP/gcf-hunter-import-result.json"
+          unset OIDC_TOKEN OIDC_RESPONSE ACTIONS_ID_TOKEN_REQUEST_TOKEN
