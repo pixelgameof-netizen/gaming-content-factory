@@ -49,7 +49,9 @@ function validLicenseUrl(value: unknown, license: string): boolean {
 }
 
 const secretKeys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}");
-const adminKey = secretKeys.default;
+// Prefer the platform-provided service-role credential so RLS-protected catalog writes
+// are performed server-side. Never expose this key to the browser or workflow payload.
+const adminKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? secretKeys.default;
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 if (!adminKey || !supabaseUrl) throw new Error("Missing server-side Supabase configuration");
 const admin = createClient(supabaseUrl, adminKey, {
