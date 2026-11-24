@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "tools/gameplay_hunter/**"
+      - "config/game_profiles.json"
       - "tests/test_gameplay_hunter.py"
       - ".github/workflows/test-gameplay-hunter.yml"
   pull_request:
