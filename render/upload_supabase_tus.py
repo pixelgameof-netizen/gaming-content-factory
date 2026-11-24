@@ -64,12 +64,16 @@ def main() -> None:
             **common_headers,
             "Upload-Length": str(size),
             "Upload-Metadata": encoded,
-        }, b"") as response:
+        }) as response:
             location = response.headers.get("Location")
             if response.status not in (201, 202) or not location:
                 raise SystemExit("Supabase did not return a TUS upload location")
     except HTTPError as exc:
-        raise SystemExit(f"Supabase TUS session creation failed with HTTP {exc.code}") from exc
+        detail = exc.read().decode("utf-8", errors="replace").strip()
+        suffix = f": {detail[:500]}" if detail else ""
+        raise SystemExit(
+            f"Supabase TUS session creation failed with HTTP {exc.code}{suffix}"
+        ) from exc
     except URLError as exc:
         raise SystemExit(f"Supabase TUS session creation failed: {exc.reason}") from exc
 
