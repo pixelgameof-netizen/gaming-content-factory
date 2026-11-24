@@ -56,8 +56,18 @@ INPUTS=()
 FILTER=""
 for f in "${SCENES[@]}"; do INPUTS+=( -i "$f" ); done
 N="${#SCENES[@]}"
+VOICE_DURATION="$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$MEDIA/voiceover.wav")"
+SEGMENT_DURATION="$(awk -v duration="$VOICE_DURATION" -v count="$N" 'BEGIN { if (count < 1 || duration <= 0) exit 1; printf "%.3f", duration/count }')"
 for ((i=0;i<N;i++)); do
-  FILTER+="[${i}:v]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},setsar=1,fps=30,format=yuv420p[v${i}];"
+  if [[ "$FORMAT" == "vertical" ]]; then
+    FILTER+="[${i}:v]split=2[bg${i}][fg${i}];"
+    FILTER+="[bg${i}]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},boxblur=24:12,eq=brightness=-0.18:saturation=0.82[blur${i}];"
+    FILTER+="[fg${i}]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease[fit${i}];"
+    FILTER+="[blur${i}][fit${i}]overlay=(W-w)/2:(H-h)/2,"
+  else
+    FILTER+="[${i}:v]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},"
+  fi
+  FILTER+="trim=duration=${SEGMENT_DURATION},tpad=stop_mode=clone:stop_duration=${SEGMENT_DURATION},trim=duration=${SEGMENT_DURATION},setpts=PTS-STARTPTS,setsar=1,fps=30,format=yuv420p[v${i}];"
 done
 for ((i=0;i<N;i++)); do FILTER+="[v${i}]"; done
 FILTER+="concat=n=${N}:v=1:a=0[vout]"
