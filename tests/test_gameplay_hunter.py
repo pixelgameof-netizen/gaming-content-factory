@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from tools.gameplay_hunter.discover_commons import (
-    license_key, clean, discover, is_commons_media_url, is_trusted_license_url
+    license_key, clean, discover, parse_games, is_commons_media_url, is_trusted_license_url
 )
 
 
@@ -29,6 +29,10 @@ class HunterTests(unittest.TestCase):
         self.assertTrue(is_trusted_license_url("https://commons.wikimedia.org/wiki/File:Example"))
         self.assertFalse(is_trusted_license_url("http://creativecommons.org/licenses/by/4.0/"))
         self.assertFalse(is_trusted_license_url("https://creativecommons.org.evil.example/license"))
+
+    def test_game_parser_splits_deduplicates_and_caps(self):
+        games = parse_games("Minecraft; Fortnite\\nROBLOX, minecraft, Zelda, Valorant, Apex, Call of Duty")
+        self.assertEqual(games, ["Minecraft", "Fortnite", "ROBLOX", "Zelda", "Valorant", "Apex"])
 
     def test_clean(self):
         self.assertEqual(clean("  Minecraft  gameplay\n clip "), "Minecraft gameplay clip")
