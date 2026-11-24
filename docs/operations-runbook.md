@@ -20,6 +20,7 @@ This runbook describes the current operating path for Gaming Content Factory. It
 - The five curated Minecraft media assets remain in private storage with `rights_status='approved'`; their five rights reviews are `approved_by_owner`.
 - The staging Edge Function is idempotent for already-approved assets: it reports them as `already_approved` instead of trying to re-review them as new candidates.
 - The Hunter workflow skips the fixed Minecraft staging/inspection path when the requested game list does not include Minecraft.
+- Discovery now reads `config/game_profiles.json`, searches configured aliases for six initial games, and falls back to the exact custom game name. Each game is capped at eight candidates; all results remain unapproved metadata.
 - If some curated assets are already approved and others still need technical inspection, the workflow expects inspection only for the remaining assets.
 - The Supabase migration `202611240001_render_job_fk_indexes_and_rls_initplan.sql` has been applied. It adds covering indexes for render-job foreign keys and uses a scalar subquery for the owner RLS check.
 - The approval RPC contract has regression tests for authenticated ownership, exact output/version/hash/platform matching, pending-only decisions, and restricted execution grants.
@@ -73,7 +74,7 @@ The approval layer is hash-bound and owner-scoped:
 ## Known gaps before declaring the whole platform complete
 
 1. **Real end-to-end render:** no production MP4 has yet been confirmed in the output bucket.
-2. **Multi-game staging:** discovery accepts up to six game queries, but the current automated staging/inspection step still uses a curated Minecraft source set. It is not yet a general automatic gameplay acquisition pipeline for every game.
+2. **Multi-game staging:** discovery now uses configurable aliases for six initial titles and supports custom game names. Automatic private staging and technical inspection still use the curated Minecraft source set; non-Minecraft candidates remain review-only until a game-specific rights and staging adapter is implemented.
 3. **Candidate-to-package workflow:** validate that a selected candidate can be reviewed, downloaded/staged privately, attached to a package, and rendered without manual database operations.
 4. **Mobile/desktop review:** verify playback, metadata, attribution, hash display, and owner approval in the live authenticated app.
 5. **Reliability:** test duplicate claims, transient download/upload failures, invalid source files, retry behavior, and multiple queued jobs.
