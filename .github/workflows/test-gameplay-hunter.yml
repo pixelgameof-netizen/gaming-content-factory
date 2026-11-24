@@ -1,6 +1,12 @@
 name: Test Gameplay Hunter
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/gameplay_hunter/**"
+      - "tests/test_gameplay_hunter.py"
+      - ".github/workflows/test-gameplay-hunter.yml"
   pull_request:
     paths:
       - "tools/gameplay_hunter/**"
