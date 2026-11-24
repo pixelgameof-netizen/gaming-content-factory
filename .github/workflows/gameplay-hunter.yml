@@ -109,13 +109,13 @@ jobs:
           cat "$RUNNER_TEMP/gcf-stage-gameplay-result.json"
           jq -e '(.errors | length) == 0 and (.rejected | length) == 0' "$RUNNER_TEMP/gcf-stage-gameplay-result.json" >/dev/null
           unset OIDC_TOKEN OIDC_RESPONSE ACTIONS_ID_TOKEN_REQUEST_TOKEN
-      - name: Inspect staged gameplay media with PyAV
+      - name: Inspect staged gameplay media with PyAV and create visual review frames
         env:
           SUPABASE_URL: https://pyrrcfegucvxyxlxzowu.supabase.co
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install av==16.0.1
+          python -m pip install av==16.0.1 pillow==12.0.0
           : "${ACTIONS_ID_TOKEN_REQUEST_URL:?GitHub OIDC is unavailable}"
           : "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:?GitHub OIDC request token is unavailable}"
           OIDC_RESPONSE="$(curl --fail --silent --show-error \
@@ -131,7 +131,7 @@ jobs:
             "$SUPABASE_URL/functions/v1/gcf-inspect-gameplay-candidates" \
             --output "$RUNNER_TEMP/gcf-inspect-assets.json"
           jq -e '.assets | length == 5' "$RUNNER_TEMP/gcf-inspect-assets.json" >/dev/null
-          mkdir -p "$RUNNER_TEMP/gcf-gameplay-qc"
+          mkdir -p "$RUNNER_TEMP/gcf-gameplay-qc" artifacts/gameplay-review-frames
           : > "$RUNNER_TEMP/gcf-gameplay-qc-results.ndjson"
           while IFS= read -r item; do
             SOURCE_ID="$(jq -r '.source_id' <<<"$item")"
@@ -142,9 +142,10 @@ jobs:
             curl --fail --location --silent --show-error --max-time 120 "$SIGNED_URL" --output "$VIDEO_FILE"
             ACTUAL_SHA="$(sha256sum "$VIDEO_FILE" | awk '{print $1}')"
             test "$ACTUAL_SHA" = "$EXPECTED_SHA"
-            python - "$VIDEO_FILE" "$SOURCE_ID" "$TITLE" "$ACTUAL_SHA" >> "$RUNNER_TEMP/gcf-gameplay-qc-results.ndjson" <<'PY'
+            python - "$VIDEO_FILE" "$SOURCE_ID" "$TITLE" "$ACTUAL_SHA" "artifacts/gameplay-review-frames" >> "$RUNNER_TEMP/gcf-gameplay-qc-results.ndjson" <<'PY'
           import json, sys, av
-          path, source_id, title, sha256 = sys.argv[1:]
+          from pathlib import Path
+          path, source_id, title, sha256, frame_dir = sys.argv[1:]
           container = av.open(path, mode="r")
           try:
               videos = [s for s in container.streams if s.type == "video"]
@@ -157,6 +158,18 @@ jobs:
               )
               if duration <= 0:
                   raise SystemExit("Video duration unavailable")
+              saved = set()
+              for frame in container.decode(video):
+                  seconds = float(frame.pts * frame.time_base) if frame.pts is not None else 0.0
+                  for target in (2, 6):
+                      if target not in saved and seconds >= target:
+                          image = frame.to_image().convert("RGB")
+                          image.thumbnail((720, 720))
+                          output = Path(frame_dir) / f"{source_id}-{target:02d}s.jpg"
+                          image.save(output, format="JPEG", quality=88, optimize=True)
+                          saved.add(target)
+              if len(saved) < 2:
+                  raise SystemExit("Could not extract both requested visual review frames")
               result = {
                   "source_id": source_id, "title": title, "sha256": sha256,
                   "duration_seconds": round(float(duration), 3),
@@ -181,7 +194,7 @@ jobs:
             "$SUPABASE_URL/functions/v1/gcf-inspect-gameplay-candidates" \
             --output "$RUNNER_TEMP/gcf-gameplay-qc-report.json"
           cat "$RUNNER_TEMP/gcf-gameplay-qc-report.json"
-          jq -e '(.rejected | length) == 0 and (.saved | length) == 5' \
+          jq -e '(.rejected | length) == 0 and (.saved | length == 5)' \
             "$RUNNER_TEMP/gcf-gameplay-qc-report.json" >/dev/null
           mkdir -p artifacts
           cp "$RUNNER_TEMP/gcf-gameplay-qc-results.json" artifacts/gameplay-media-qc.json
@@ -192,5 +205,13 @@ jobs:
         with:
           name: minecraft-gameplay-media-qc-${{ github.run_id }}
           path: artifacts/gameplay-media-qc.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload visual review frames (not source media)
+        uses: actions/upload-artifact@v4
+        with:
+          name: minecraft-gameplay-visual-review-${{ github.run_id }}
+          path: artifacts/gameplay-review-frames/*.jpg
           if-no-files-found: error
           retention-days: 14
