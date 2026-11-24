@@ -31,7 +31,7 @@ class HunterTests(unittest.TestCase):
         self.assertFalse(is_trusted_license_url("https://creativecommons.org.evil.example/license"))
 
     def test_game_parser_splits_deduplicates_and_caps(self):
-        games = parse_games("Minecraft; Fortnite\\nROBLOX, minecraft, Zelda, Valorant, Apex, Call of Duty")
+        games = parse_games("Minecraft; Fortnite\nROBLOX, minecraft, Zelda, Valorant, Apex, Call of Duty")
         self.assertEqual(games, ["Minecraft", "Fortnite", "ROBLOX", "Zelda", "Valorant", "Apex"])
 
     def test_clean(self):
