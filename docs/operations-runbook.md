@@ -15,6 +15,15 @@ This runbook describes the current operating path for Gaming Content Factory. It
 | `test-tts.yml` | Relevant push, pull request, manual dispatch | Verifies Spanish Kokoro narration and SRT generation | Does not render a production video |
 | `test-render-generic.yml` | Relevant push, pull request, manual dispatch | Verifies the generic FFmpeg renderer with synthetic media | Does not validate source rights or a real production package |
 
+## Latest infrastructure verification
+
+- The five curated Minecraft media assets remain in private storage with `rights_status='approved'`; their five rights reviews are `approved_by_owner`.
+- The staging Edge Function is idempotent for already-approved assets: it reports them as `already_approved` instead of trying to re-review them as new candidates.
+- The Hunter workflow skips the fixed Minecraft staging/inspection path when the requested game list does not include Minecraft.
+- If some curated assets are already approved and others still need technical inspection, the workflow expects inspection only for the remaining assets.
+- The Supabase migration `202611240001_render_job_fk_indexes_and_rls_initplan.sql` has been applied. It adds covering indexes for render-job foreign keys and uses a scalar subquery for the owner RLS check.
+- The approval RPC contract has regression tests for authenticated ownership, exact output/version/hash/platform matching, pending-only decisions, and restricted execution grants.
+
 ## First production: Minecraft
 
 The first package has an owner-approved Spanish script and five owner-approved source/rights records. The source clips are stored in the private source bucket. The approval is based on the reviewed evidence and is not a legal guarantee for independent third-party rights.
