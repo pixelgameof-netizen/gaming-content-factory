@@ -137,11 +137,21 @@ jobs:
           elif [[ "$(jq -r '.caption_text // empty' "$RESPONSE_FILE")" != "" ]]; then
             CAPTION_SCRIPT="$ROOT/caption-script.txt"
             jq -er '.caption_text' "$RESPONSE_FILE" > "$CAPTION_SCRIPT"
-            python3 -m pip install --disable-pip-version-check --no-cache-dir "faster-whisper==1.1.1" "requests==2.32.5" "av==14.4.0"
+            python3 -m pip install --disable-pip-version-check --no-cache-dir "vosk==0.3.45"
+            MODEL_ZIP="$RUNNER_TEMP/vosk-model-small-es-0.42.zip"
+            MODEL_DIR="$RUNNER_TEMP/vosk-model-small-es-0.42"
+            curl --fail --silent --show-error --location \
+              "https://alphacephei.com/vosk/models/vosk-model-small-es-0.42.zip" \
+              --output "$MODEL_ZIP"
+            echo "09b239888f633ef2f0b4e09736e3d9936acfd810bc65d53fad45261762c6511f  $MODEL_ZIP" | sha256sum --check
+            python3 -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$MODEL_ZIP" "$RUNNER_TEMP"
+            ffmpeg -y -nostdin -hide_banner -loglevel error -i "$MEDIA/voiceover.wav" \
+              -ac 1 -ar 16000 -sample_fmt s16 "$MEDIA/voiceover-16k.wav"
             python3 render/align_voiceover_captions.py \
-              --audio "$MEDIA/voiceover.wav" \
+              --audio "$MEDIA/voiceover-16k.wav" \
               --expected-text "$CAPTION_SCRIPT" \
-              --captions "$ROOT/captions.srt"
+              --captions "$ROOT/captions.srt" \
+              --model "$MODEL_DIR"
             rm -f "$CAPTION_SCRIPT"
           fi
 
