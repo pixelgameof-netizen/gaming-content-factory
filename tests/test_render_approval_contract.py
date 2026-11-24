@@ -56,13 +56,13 @@ class RenderApprovalContractTests(unittest.TestCase):
         self.assertIn("a.status = 'pending'", self.pending)
 
     def test_approval_rpcs_are_not_granted_to_public_or_anon(self):
-        self.assertRegex(
+        self.assertIn(
+            "revoke all on function public.gcf_decide_render_output(uuid, uuid, text, text, text, text) from public, anon, service_role;",
             self.sql,
-            r"revoke all on function public\\.gcf_decide_render_output\\([^;]+ from public, anon, service_role;",
         )
-        self.assertRegex(
+        self.assertIn(
+            "grant execute on function public.gcf_decide_render_output(uuid, uuid, text, text, text, text) to authenticated;",
             self.sql,
-            r"grant execute on function public\\.gcf_decide_render_output\\([^;]+ to authenticated;",
         )
 
 
