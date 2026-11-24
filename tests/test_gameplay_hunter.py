@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from tools.gameplay_hunter.discover_commons import (
     license_key, clean, discover, parse_games, is_commons_media_url, is_trusted_license_url,
-    is_relevant_game
+    is_relevant_game, load_game_profiles, search_terms_for_game
 )
 
 
@@ -38,6 +38,17 @@ class HunterTests(unittest.TestCase):
     def test_game_parser_splits_deduplicates_and_caps(self):
         games = parse_games("Minecraft; Fortnite\nROBLOX, minecraft, Zelda, Valorant, Apex, Call of Duty")
         self.assertEqual(games, ["Minecraft", "Fortnite", "ROBLOX", "Zelda", "Valorant", "Apex"])
+
+    def test_game_profiles_load_aliases_and_keep_custom_games(self):
+        defaults, profiles = load_game_profiles()
+        self.assertEqual(len(defaults), 6)
+        self.assertIn("minecraft", profiles)
+        self.assertIn("GTA V", search_terms_for_game("Grand Theft Auto", profiles))
+        self.assertEqual(search_terms_for_game("A game not in config", profiles), ["A game not in config"])
+
+    def test_profile_aliases_are_bounded_and_deduplicated(self):
+        profiles = {"example": ["Example", "Example", "Example 2", "", "Example 3", "Example 4"]}
+        self.assertEqual(search_terms_for_game("Example", profiles), ["Example", "Example", "Example 2", "", "Example 3", "Example 4"])
 
     def test_clean(self):
         self.assertEqual(clean("  Minecraft  gameplay\n clip "), "Minecraft gameplay clip")
