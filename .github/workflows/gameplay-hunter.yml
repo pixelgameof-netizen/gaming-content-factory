@@ -1,0 +1,48 @@
+name: Discover licensed gameplay candidates
+
+on:
+  workflow_dispatch:
+    inputs:
+      games:
+        description: "Comma-separated game titles (leave empty for the default multi-game list)"
+        required: false
+        type: string
+  schedule:
+    - cron: "17 6 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gameplay-hunter
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned discovery dependency
+        run: python -m pip install requests==2.32.5
+      - name: Discover candidates from Wikimedia Commons
+        env:
+          GAME_QUERIES: ${{ inputs.games }}
+        run: |
+          if [ -n "$GAME_QUERIES" ]; then
+            python tools/gameplay_hunter/discover_commons.py --games "$GAME_QUERIES"
+          else
+            python tools/gameplay_hunter/discover_commons.py
+          fi
+      - name: Upload candidate catalog
+        uses: actions/upload-artifact@v4
+        with:
+          name: gameplay-candidates-${{ github.run_id }}
+          path: artifacts/gameplay-candidates.json
+          if-no-files-found: error
+          retention-days: 14
