@@ -38,14 +38,24 @@ jobs:
       - name: Install pinned discovery dependency
         run: python -m pip install requests==2.32.5
       - name: Discover candidates from Wikimedia Commons
+        id: discover
         env:
           GAME_QUERIES: ${{ inputs.games }}
         run: |
+          set -euo pipefail
           if [ -n "$GAME_QUERIES" ]; then
             python tools/gameplay_hunter/discover_commons.py --games "$GAME_QUERIES"
           else
             python tools/gameplay_hunter/discover_commons.py
           fi
+          python - "$GAME_QUERIES" >> "$GITHUB_OUTPUT" <<'PY'
+          import re, sys
+          requested = sys.argv[1].strip()
+          games = [part.strip().casefold() for part in re.split(r"[,;\\n]+", requested) if part.strip()]
+          if not requested:
+              games = ["minecraft", "fortnite", "roblox", "grand theft auto", "counter-strike", "valorant"]
+          print("stage_curated_minecraft=" + ("true" if "minecraft" in games else "false"))
+          PY
       - name: Upload candidate catalog
         uses: actions/upload-artifact@v4
         with:
@@ -81,6 +91,7 @@ jobs:
 
       # Retryable and idempotent: service_role has only the table access needed for private staging.
       - name: Stage curated Minecraft gameplay in private review storage
+        if: steps.discover.outputs.stage_curated_minecraft == 'true'
         env:
           SUPABASE_URL: https://pyrrcfegucvxyxlxzowu.supabase.co
         shell: bash
@@ -110,6 +121,7 @@ jobs:
           jq -e '(.errors | length) == 0 and (.rejected | length) == 0' "$RUNNER_TEMP/gcf-stage-gameplay-result.json" >/dev/null
           unset OIDC_TOKEN OIDC_RESPONSE ACTIONS_ID_TOKEN_REQUEST_TOKEN
       - name: Inspect staged gameplay media with PyAV and create visual review frames
+        if: steps.discover.outputs.stage_curated_minecraft == 'true'
         env:
           SUPABASE_URL: https://pyrrcfegucvxyxlxzowu.supabase.co
         shell: bash
@@ -201,6 +213,7 @@ jobs:
           unset OIDC_TOKEN OIDC_RESPONSE ACTIONS_ID_TOKEN_REQUEST_TOKEN
 
       - name: Upload private gameplay technical QC report
+        if: steps.discover.outputs.stage_curated_minecraft == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: minecraft-gameplay-media-qc-${{ github.run_id }}
@@ -209,6 +222,7 @@ jobs:
           retention-days: 14
 
       - name: Upload visual review frames (not source media)
+        if: steps.discover.outputs.stage_curated_minecraft == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: minecraft-gameplay-visual-review-${{ github.run_id }}
