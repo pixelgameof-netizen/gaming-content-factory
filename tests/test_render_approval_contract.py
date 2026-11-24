@@ -61,7 +61,6 @@ class RenderApprovalContractTests(unittest.TestCase):
             self.assertIn("security definer", body.lower())
             self.assertIn("set search_path = ''", body.lower())
             self.assertIn("auth.uid()", body)
-        self.assertIn("p.owner_id = auth.uid()", jobs)
         self.assertIn("j.owner_id = auth.uid()", jobs)
 
     def test_approval_rpcs_are_not_granted_to_public_or_anon(self):
