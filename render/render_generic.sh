@@ -68,7 +68,7 @@ for ((i=0;i<N;i++)); do
   else
     FILTER+="[${i}:v]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},"
   fi
-  FILTER+="trim=duration=${SEGMENT_DURATION},tpad=stop_mode=clone:stop_duration=${SEGMENT_DURATION},trim=duration=${SEGMENT_DURATION},setpts=PTS-STARTPTS,setsar=1,fps=30,format=yuv420p[v${i}];"
+  FILTER+="trim=duration=${SEGMENT_DURATION},tpad=stop_mode=clone:stop_duration=${SEGMENT_DURATION},trim=duration=${SEGMENT_DURATION},setpts=PTS-STARTPTS,setsar=1,fps=30,settb=AVTB,format=yuv420p[v${i}];"
 done
 if ((N == 1)); then
   FILTER+="[v0]format=yuv420p[vout]"
