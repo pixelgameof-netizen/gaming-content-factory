@@ -78,3 +78,33 @@ jobs:
           cat "$RUNNER_TEMP/gcf-hunter-import-result.json"
           jq -e '(.errors | length) == 0' "$RUNNER_TEMP/gcf-hunter-import-result.json" >/dev/null
           unset OIDC_TOKEN OIDC_RESPONSE ACTIONS_ID_TOKEN_REQUEST_TOKEN
+
+      - name: Stage curated Minecraft gameplay in private review storage
+        env:
+          SUPABASE_URL: https://pyrrcfegucvxyxlxzowu.supabase.co
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${ACTIONS_ID_TOKEN_REQUEST_URL:?GitHub OIDC is unavailable}"
+          : "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:?GitHub OIDC request token is unavailable}"
+          OIDC_RESPONSE="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            --get --data-urlencode "audience=gcf-stage-gameplay-candidates" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL")"
+          OIDC_TOKEN="$(jq -er '.value' <<<"$OIDC_RESPONSE")"
+          jq -n --argjson ids '[
+            "3f2333f2-0f01-40d8-82dd-eb92acd5a144",
+            "71730fcd-c7ec-4432-b3a4-54fe92f11599",
+            "fc800ea8-d298-4da0-a2fc-582290d86c01",
+            "fc2330bf-11a9-446f-94ec-f91dac29ba47",
+            "34ae3b20-7e17-4958-a682-c44775cfef33"
+          ]' '{source_ids: $ids}' > "$RUNNER_TEMP/gcf-stage-gameplay.json"
+          curl --fail --silent --show-error --request POST \
+            -H "Authorization: Bearer $OIDC_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary @"$RUNNER_TEMP/gcf-stage-gameplay.json" \
+            "$SUPABASE_URL/functions/v1/gcf-stage-gameplay-candidates" \
+            --output "$RUNNER_TEMP/gcf-stage-gameplay-result.json"
+          cat "$RUNNER_TEMP/gcf-stage-gameplay-result.json"
+          jq -e '(.errors | length) == 0 and (.rejected | length) == 0' "$RUNNER_TEMP/gcf-stage-gameplay-result.json" >/dev/null
+          unset OIDC_TOKEN OIDC_RESPONSE ACTIONS_ID_TOKEN_REQUEST_TOKEN
