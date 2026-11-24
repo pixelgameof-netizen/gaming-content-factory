@@ -4,7 +4,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from tools.gameplay_hunter.discover_commons import (
-    license_key, clean, discover, parse_games, is_commons_media_url, is_trusted_license_url
+    license_key, clean, discover, parse_games, is_commons_media_url, is_trusted_license_url,
+    is_relevant_game
 )
 
 
@@ -40,6 +41,12 @@ class HunterTests(unittest.TestCase):
 
     def test_clean(self):
         self.assertEqual(clean("  Minecraft  gameplay\n clip "), "Minecraft gameplay clip")
+
+    def test_relevance_filter_rejects_unrelated_games(self):
+        self.assertTrue(is_relevant_game("Minecraft", "File:Minecraft Classic Gameplay.webm", ""))
+        self.assertTrue(is_relevant_game("Minecraft", "File:Gameplay.webm", "Gameplay footage of Minecraft."))
+        self.assertFalse(is_relevant_game("Minecraft", "File:Dishonored 2 gameplay clip.webm", "A montage from Dishonored 2."))
+        self.assertFalse(is_relevant_game("Minecraft", "File:Luanti 5.10.webm", "Luanti is an alternative to Minecraft."))
 
     def test_discover_empty_game_list(self):
         result = discover([])
