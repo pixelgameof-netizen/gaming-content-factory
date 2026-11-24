@@ -1,6 +1,11 @@
 name: Discover licensed gameplay candidates
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/gameplay-hunter.yml"
+      - "tools/gameplay_hunter/**"
   workflow_dispatch:
     inputs:
       games:
@@ -70,4 +75,5 @@ jobs:
             "$SUPABASE_URL/functions/v1/gcf-import-gameplay-candidates" \
             --output "$RUNNER_TEMP/gcf-hunter-import-result.json"
           cat "$RUNNER_TEMP/gcf-hunter-import-result.json"
+          jq -e '(.errors | length) == 0' "$RUNNER_TEMP/gcf-hunter-import-result.json" >/dev/null
           unset OIDC_TOKEN OIDC_RESPONSE ACTIONS_ID_TOKEN_REQUEST_TOKEN
