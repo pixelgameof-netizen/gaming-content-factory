@@ -30,6 +30,24 @@ def clean(value: str) -> str:
     return re.sub(r"\s+", " ", value or "").strip()
 
 
+def is_relevant_game(game: str, title: str, description: str) -> bool:
+    """Reject search spillover where another game only mentions the queried title."""
+    game_text = clean(game).casefold()
+    title_text = clean(title).casefold()
+    description_text = clean(description).casefold()
+    if not game_text:
+        return False
+    if game_text in title_text:
+        return True
+    escaped = re.escape(game_text)
+    direct_gameplay = re.compile(
+        rf"\\b(?:gameplay(?:\\s+footage)?|game)\\s+(?:of\\s+|:\\s*)?{escaped}\\b",
+        re.IGNORECASE,
+    )
+    playing_game = re.compile(rf"\\bplaying\\s+{escaped}\\b", re.IGNORECASE)
+    return bool(direct_gameplay.search(description_text) or playing_game.search(description_text))
+
+
 def parse_games(value: str) -> list[str]:
     """Parse a bounded, de-duplicated list of game names."""
     games: list[str] = []
@@ -116,6 +134,8 @@ def search_commons(game: str, session: requests.Session, limit: int = MAX_RESULT
             continue
 
         description = clean(meta.get("ImageDescription", {}).get("value", ""))
+        if not is_relevant_game(game, title, description):
+            continue
         artist = clean(meta.get("Artist", {}).get("value", ""))
         credit = clean(meta.get("Credit", {}).get("value", ""))
         usage = clean(meta.get("UsageTerms", {}).get("value", ""))
