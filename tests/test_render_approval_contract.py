@@ -55,6 +55,15 @@ class RenderApprovalContractTests(unittest.TestCase):
         self.assertIn("o.owner_id = auth.uid()", self.pending)
         self.assertIn("a.status = 'pending'", self.pending)
 
+    def test_owner_scoped_definer_rpcs_pin_search_path_and_authenticate(self):
+        jobs = function_body(self.sql, "gcf_list_render_jobs")
+        for body in (self.decide, self.pending, jobs):
+            self.assertIn("security definer", body.lower())
+            self.assertIn("set search_path = ''", body.lower())
+            self.assertIn("auth.uid()", body)
+        self.assertIn("p.owner_id = auth.uid()", jobs)
+        self.assertIn("j.owner_id = auth.uid()", jobs)
+
     def test_approval_rpcs_are_not_granted_to_public_or_anon(self):
         self.assertIn(
             "revoke all on function public.gcf_decide_render_output(uuid, uuid, text, text, text, text) from public, anon, service_role;",
