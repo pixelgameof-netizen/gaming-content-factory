@@ -23,10 +23,24 @@ ALLOWED_LICENSES = {
 }
 VIDEO_EXTENSIONS = (".webm", ".ogv", ".ogg", ".mp4", ".mkv", ".mov")
 MAX_RESULTS_PER_GAME = 8
+MAX_GAMES_PER_RUN = 6
 
 
 def clean(value: str) -> str:
     return re.sub(r"\s+", " ", value or "").strip()
+
+
+def parse_games(value: str) -> list[str]:
+    """Parse a bounded, de-duplicated list of game names."""
+    games: list[str] = []
+    seen: set[str] = set()
+    for part in re.split(r"[,;\\n]+", value or ""):
+        game = clean(part)
+        key = game.casefold()
+        if game and key not in seen and len(games) < MAX_GAMES_PER_RUN:
+            games.append(game)
+            seen.add(key)
+    return games
 
 
 def license_key(value: str) -> str | None:
@@ -160,7 +174,7 @@ def main() -> int:
     parser.add_argument("--games", default="Minecraft, Fortnite, Roblox, Grand Theft Auto, Counter-Strike, Valorant, Apex Legends, The Legend of Zelda, Super Mario, Call of Duty")
     parser.add_argument("--output", default="artifacts/gameplay-candidates.json")
     args = parser.parse_args()
-    games = [clean(part) for part in args.games.split(",") if clean(part)]
+    games = parse_games(args.games)
     result = discover(games)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
