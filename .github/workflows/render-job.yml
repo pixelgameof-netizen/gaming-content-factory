@@ -81,13 +81,28 @@ jobs:
 
           while IFS= read -r asset; do
             NAME="$(jq -er '.file_name' <<<"$asset")"
+            MIME="$(jq -er '.mime_type' <<<"$asset")"
             URL="$(jq -er '.url' <<<"$asset")"
             EXPECTED="$(jq -er '.sha256' <<<"$asset")"
             [[ "$NAME" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]] || { echo "Unsafe asset name" >&2; exit 1; }
             TARGET="$MEDIA/$NAME"
-            curl --fail --silent --show-error --location "$URL" --output "$TARGET"
-            ACTUAL="$(sha256sum "$TARGET" | cut -d' ' -f1)"
-            [[ "$ACTUAL" == "$EXPECTED" ]] || { echo "SHA-256 mismatch for $NAME" >&2; exit 1; }
+            if [[ "$MIME" == "video/webm" ]]; then
+              SOURCE_TARGET="$MEDIA/${NAME%.mp4}.source.webm"
+              curl --fail --silent --show-error --location "$URL" --output "$SOURCE_TARGET"
+              ACTUAL="$(sha256sum "$SOURCE_TARGET" | cut -d' ' -f1)"
+              [[ "$ACTUAL" == "$EXPECTED" ]] || { echo "SHA-256 mismatch for WebM source $NAME" >&2; exit 1; }
+              ffmpeg -y -nostdin -hide_banner -loglevel error -i "$SOURCE_TARGET" \
+                -an -c:v libx264 -preset veryfast -crf 20 -pix_fmt yuv420p \
+                -movflags +faststart "$TARGET"
+              rm -f "$SOURCE_TARGET"
+            elif [[ "$MIME" == "video/mp4" ]]; then
+              curl --fail --silent --show-error --location "$URL" --output "$TARGET"
+              ACTUAL="$(sha256sum "$TARGET" | cut -d' ' -f1)"
+              [[ "$ACTUAL" == "$EXPECTED" ]] || { echo "SHA-256 mismatch for MP4 source $NAME" >&2; exit 1; }
+            else
+              echo "Unsupported source MIME type: $MIME" >&2
+              exit 1
+            fi
           done < <(jq -c '.files[]' "$RESPONSE_FILE")
 
           if [[ "$(jq -r '.narration_text // empty' "$RESPONSE_FILE")" != "" ]]; then
