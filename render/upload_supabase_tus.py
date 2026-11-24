@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Upload a render artifact to Supabase Storage with a signed TUS token."""
+"""Upload a render artifact through Supabase Storage signed TUS (/sign) endpoint."""
 import argparse
 import base64
 import os
