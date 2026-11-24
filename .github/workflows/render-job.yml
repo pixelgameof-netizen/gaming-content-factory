@@ -104,6 +104,11 @@ jobs:
               curl --fail --silent --show-error --location "$URL" --output "$TARGET"
               ACTUAL="$(sha256sum "$TARGET" | cut -d' ' -f1)"
               [[ "$ACTUAL" == "$EXPECTED" ]] || { echo "SHA-256 mismatch for MP4 source $NAME" >&2; exit 1; }
+            elif [[ "$MIME" == "audio/wav" || "$MIME" == "audio/x-wav" ]]; then
+              [[ "$NAME" == "voiceover.wav" ]] || { echo "Unexpected audio asset name" >&2; exit 1; }
+              curl --fail --silent --show-error --location "$URL" --output "$TARGET"
+              ACTUAL="$(sha256sum "$TARGET" | cut -d' ' -f1)"
+              [[ "$ACTUAL" == "$EXPECTED" ]] || { echo "SHA-256 mismatch for WAV voiceover" >&2; exit 1; }
             else
               echo "Unsupported source MIME type: $MIME" >&2
               exit 1
@@ -129,6 +134,15 @@ jobs:
               --script "$NARRATION_FILE" --model "$MODEL" --voices "$VOICES" \
               --audio "$MEDIA/voiceover.wav" --captions "$ROOT/captions.srt"
             rm -f "$NARRATION_FILE" "$MODEL" "$VOICES"
+          elif [[ "$(jq -r '.caption_text // empty' "$RESPONSE_FILE")" != "" ]]; then
+            CAPTION_SCRIPT="$ROOT/caption-script.txt"
+            jq -er '.caption_text' "$RESPONSE_FILE" > "$CAPTION_SCRIPT"
+            python3 -m pip install --disable-pip-version-check --no-cache-dir "faster-whisper==1.1.1"
+            python3 render/align_voiceover_captions.py \
+              --audio "$MEDIA/voiceover.wav" \
+              --expected-text "$CAPTION_SCRIPT" \
+              --captions "$ROOT/captions.srt"
+            rm -f "$CAPTION_SCRIPT"
           fi
 
           jq '{
