@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "generated_output_contract": {
+    "video_codec": "h264",
+    "audio_codec": "aac",
+    "frame_rate": 30,
+    "audio_sample_rate": 48000,
+    "max_duration_seconds": 900,
+    "max_file_size_bytes": 52428800,
+    "storage_bucket": "gcf-video-outputs",
+    "publication_enabled": false
+  },
+  "profiles": [
+    {
+      "platform": "youtube_shorts",
+      "output_type": "short",
+      "aspect_ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "frame_rate": 30
+    },
+    {
+      "platform": "tiktok",
+      "output_type": "short",
+      "aspect_ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "frame_rate": 30
+    },
+    {
+      "platform": "instagram_reels",
+      "output_type": "short",
+      "aspect_ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "frame_rate": 30
+    },
+    {
+      "platform": "facebook_reels",
+      "output_type": "short",
+      "aspect_ratio": "9:16",
+      "width": 1080,
+      "height": 1920,
+      "frame_rate": 30
+    },
+    {
+      "platform": "youtube",
+      "output_type": "long_video",
+      "aspect_ratio": "16:9",
+      "width": 1920,
+      "height": 1080,
+      "frame_rate": 30
+    }
+  ],
+  "notes": [
+    "These are internal render presets, not a statement of current platform upload or monetization limits.",
+    "Re-check platform requirements before enabling publication.",
+    "No profile enables automatic publishing."
+  ]
+}
