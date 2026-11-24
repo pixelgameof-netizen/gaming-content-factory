@@ -1,4 +1,8 @@
+import sys
 import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from tools.gameplay_hunter.discover_commons import license_key, clean, discover
 
 
