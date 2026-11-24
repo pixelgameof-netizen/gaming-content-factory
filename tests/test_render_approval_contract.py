@@ -57,11 +57,14 @@ class RenderApprovalContractTests(unittest.TestCase):
 
     def test_owner_scoped_definer_rpcs_pin_search_path_and_authenticate(self):
         jobs = function_body(self.sql, "gcf_list_render_jobs")
-        for body in (self.decide, self.pending, jobs):
+        create = function_body(self.sql, "gcf_create_render_job")
+        for body in (self.decide, self.pending, jobs, create):
             self.assertIn("security definer", body.lower())
             self.assertIn("set search_path = ''", body.lower())
             self.assertIn("auth.uid()", body)
         self.assertIn("j.owner_id = auth.uid()", jobs)
+        self.assertIn("v_owner uuid := auth.uid()", create)
+        self.assertIn("set search_path = ''", create.lower())
 
     def test_approval_rpcs_are_not_granted_to_public_or_anon(self):
         self.assertIn(
