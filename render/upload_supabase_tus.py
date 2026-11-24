@@ -46,7 +46,7 @@ def main() -> None:
     if not args.project_ref.isalnum() or len(args.project_ref) < 10:
         raise SystemExit("Invalid Supabase project reference")
 
-    endpoint = f"https://{args.project_ref}.storage.supabase.co/storage/v1/upload/resumable"
+    endpoint = f"https://{args.project_ref}.storage.supabase.co/storage/v1/upload/resumable/sign"
     metadata = {
         "bucketName": args.bucket,
         "objectName": args.path,
