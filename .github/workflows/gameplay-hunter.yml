@@ -91,6 +91,7 @@ jobs:
 
       # Retryable and idempotent: service_role has only the table access needed for private staging.
       - name: Stage curated Minecraft gameplay in private review storage
+        id: stage
         if: steps.discover.outputs.stage_curated_minecraft == 'true'
         env:
           SUPABASE_URL: https://pyrrcfegucvxyxlxzowu.supabase.co
@@ -119,9 +120,12 @@ jobs:
             --output "$RUNNER_TEMP/gcf-stage-gameplay-result.json"
           cat "$RUNNER_TEMP/gcf-stage-gameplay-result.json"
           jq -e '(.errors | length) == 0 and (.rejected | length) == 0' "$RUNNER_TEMP/gcf-stage-gameplay-result.json" >/dev/null
+          echo "new_count=$(jq -r '.staged | length' "$RUNNER_TEMP/gcf-stage-gameplay-result.json")" >> "$GITHUB_OUTPUT"
+          echo "approved_count=$(jq -r '.already_approved | length' "$RUNNER_TEMP/gcf-stage-gameplay-result.json")" >> "$GITHUB_OUTPUT"
           unset OIDC_TOKEN OIDC_RESPONSE ACTIONS_ID_TOKEN_REQUEST_TOKEN
       - name: Inspect staged gameplay media with PyAV and create visual review frames
-        if: steps.discover.outputs.stage_curated_minecraft == 'true'
+        id: inspect
+        if: steps.discover.outputs.stage_curated_minecraft == 'true' && (steps.stage.outputs.new_count != '0' || steps.stage.outputs.approved_count == '0')
         env:
           SUPABASE_URL: https://pyrrcfegucvxyxlxzowu.supabase.co
         shell: bash
@@ -213,7 +217,7 @@ jobs:
           unset OIDC_TOKEN OIDC_RESPONSE ACTIONS_ID_TOKEN_REQUEST_TOKEN
 
       - name: Upload private gameplay technical QC report
-        if: steps.discover.outputs.stage_curated_minecraft == 'true'
+        if: steps.inspect.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: minecraft-gameplay-media-qc-${{ github.run_id }}
@@ -222,7 +226,7 @@ jobs:
           retention-days: 14
 
       - name: Upload visual review frames (not source media)
-        if: steps.discover.outputs.stage_curated_minecraft == 'true'
+        if: steps.inspect.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: minecraft-gameplay-visual-review-${{ github.run_id }}
