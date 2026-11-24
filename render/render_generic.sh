@@ -57,7 +57,8 @@ FILTER=""
 for f in "${SCENES[@]}"; do INPUTS+=( -i "$f" ); done
 N="${#SCENES[@]}"
 VOICE_DURATION="$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$MEDIA/voiceover.wav")"
-SEGMENT_DURATION="$(awk -v duration="$VOICE_DURATION" -v count="$N" 'BEGIN { if (count < 1 || duration <= 0) exit 1; printf "%.3f", duration/count }')"
+TRANSITION_DURATION="0.25"
+SEGMENT_DURATION="$(awk -v duration="$VOICE_DURATION" -v count="$N" -v transition="$TRANSITION_DURATION" 'BEGIN { if (count < 1 || duration <= 0) exit 1; printf "%.3f", (duration+(count-1)*transition)/count }')"
 for ((i=0;i<N;i++)); do
   if [[ "$FORMAT" == "vertical" ]]; then
     FILTER+="[${i}:v]split=2[bg${i}][fg${i}];"
@@ -69,8 +70,17 @@ for ((i=0;i<N;i++)); do
   fi
   FILTER+="trim=duration=${SEGMENT_DURATION},tpad=stop_mode=clone:stop_duration=${SEGMENT_DURATION},trim=duration=${SEGMENT_DURATION},setpts=PTS-STARTPTS,setsar=1,fps=30,format=yuv420p[v${i}];"
 done
-for ((i=0;i<N;i++)); do FILTER+="[v${i}]"; done
-FILTER+="concat=n=${N}:v=1:a=0[vout]"
+if ((N == 1)); then
+  FILTER+="[v0]format=yuv420p[vout]"
+else
+  PREVIOUS="[v0]"
+  for ((i=1;i<N;i++)); do
+    OFFSET="$(awk -v segment="$SEGMENT_DURATION" -v transition="$TRANSITION_DURATION" -v count="$i" 'BEGIN { printf "%.3f", count*(segment-transition) }')"
+    FILTER+="${PREVIOUS}[v${i}]xfade=transition=fade:duration=${TRANSITION_DURATION}:offset=${OFFSET}[x${i}];"
+    PREVIOUS="[x${i}]"
+  done
+  FILTER+="${PREVIOUS}format=yuv420p[vout]"
+fi
 INPUTS+=( -i "$MEDIA/voiceover.wav" )
 AUDIO_INDEX=$N
 if [[ -f "$MEDIA/music.wav" ]]; then
