@@ -46,7 +46,7 @@ class ResumableUploadTests(unittest.TestCase):
 
             def fake_request(url, method, headers, data=None):
                 if method == "POST":
-                    self.assertTrue(url.endswith("/storage/v1/upload/resumable"))
+                    self.assertTrue(url.endswith("/storage/v1/upload/resumable/sign"))
                     self.assertEqual(headers["x-signature"], TOKEN)
                     self.assertEqual(headers["Upload-Length"], str(len(payload)))
                     self.assertIn("bucketName ", headers["Upload-Metadata"])
