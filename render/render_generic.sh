@@ -10,8 +10,15 @@ MEDIA="${ROOT}/media"
 RIGHTS="${ROOT}/rights-review.json"
 
 case "$FORMAT" in
-  vertical) WIDTH=1080; HEIGHT=1920; RATIO="9:16" ;;
-  horizontal) WIDTH=1920; HEIGHT=1080; RATIO="16:9" ;;
+  vertical)
+    WIDTH=1080; HEIGHT=1920; RATIO="9:16"
+    # Short-form captions: bold, high-contrast, centered in the lower safe area.
+    CAPTION_STYLE="FontName=DejaVu Sans,FontSize=64,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&HCC000000,BorderStyle=1,Outline=4,Shadow=1,Alignment=2,MarginL=84,MarginR=84,MarginV=270"
+    ;;
+  horizontal)
+    WIDTH=1920; HEIGHT=1080; RATIO="16:9"
+    CAPTION_STYLE="FontName=DejaVu Sans,FontSize=48,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&HCC000000,BorderStyle=1,Outline=3,Shadow=1,Alignment=2,MarginL=120,MarginR=120,MarginV=84"
+    ;;
   *) echo "Unsupported format: $FORMAT" >&2; exit 2 ;;
 esac
 command -v ffmpeg >/dev/null || { echo "FFmpeg missing" >&2; exit 1; }
@@ -96,7 +103,10 @@ ffmpeg -hide_banner -y "${INPUTS[@]}" -filter_complex "$FILTER;$AUDIO" \
 
 if [[ -f "$ROOT/captions.srt" ]]; then
   TEMP="${OUTPUT%.mp4}.captioned.mp4"
-  ffmpeg -hide_banner -y -i "$OUTPUT" -vf "subtitles=$ROOT/captions.srt" \
+  # Apply a consistent broadcast-style caption treatment while preserving
+  # the source SRT timings and text. Keep captions inside platform-safe margins.
+  ffmpeg -hide_banner -y -i "$OUTPUT" \
+    -vf "subtitles=$ROOT/captions.srt:force_style='$CAPTION_STYLE'" \
     -c:v libx264 -preset veryfast -crf 20 -c:a copy -movflags +faststart "$TEMP"
   mv "$TEMP" "$OUTPUT"
 fi
