@@ -26,10 +26,13 @@ class HunterTests(unittest.TestCase):
         self.assertFalse(is_commons_media_url("https://example.com/video.webm"))
 
     def test_license_url_must_use_trusted_https_host(self):
-        self.assertTrue(is_trusted_license_url("https://creativecommons.org/licenses/by/4.0/"))
-        self.assertTrue(is_trusted_license_url("https://commons.wikimedia.org/wiki/File:Example"))
-        self.assertFalse(is_trusted_license_url("http://creativecommons.org/licenses/by/4.0/"))
-        self.assertFalse(is_trusted_license_url("https://creativecommons.org.evil.example/license"))
+        self.assertTrue(is_trusted_license_url("https://creativecommons.org/licenses/by/4.0/", "CC BY 4.0"))
+        self.assertTrue(is_trusted_license_url("https://creativecommons.org/licenses/by/3.0/", "CC BY 3.0"))
+        self.assertTrue(is_trusted_license_url("https://creativecommons.org/publicdomain/zero/1.0/", "CC0"))
+        self.assertFalse(is_trusted_license_url("https://commons.wikimedia.org/wiki/File:Example", "CC BY 4.0"))
+        self.assertFalse(is_trusted_license_url("https://creativecommons.org/licenses/by/3.0/", "CC BY 4.0"))
+        self.assertFalse(is_trusted_license_url("http://creativecommons.org/licenses/by/4.0/", "CC BY 4.0"))
+        self.assertFalse(is_trusted_license_url("https://creativecommons.org.evil.example/license", "CC BY 4.0"))
 
     def test_game_parser_splits_deduplicates_and_caps(self):
         games = parse_games("Minecraft; Fortnite\nROBLOX, minecraft, Zelda, Valorant, Apex, Call of Duty")
