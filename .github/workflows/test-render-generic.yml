@@ -9,6 +9,7 @@ on:
       - 'render/upload_supabase_tus.py'
       - 'render/generate_voiceover.py'
       - 'tests/**'
+      - 'config/output_profiles.json'
       - 'tools/gameplay_hunter/**'
       - 'supabase/functions/gcf-render-job-assets/**'
       - 'supabase/functions/gcf-render-job-output/**'
