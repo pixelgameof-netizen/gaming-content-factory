@@ -30,6 +30,26 @@ The first package has an owner-approved Spanish script and five owner-approved s
 7. Verify narration, captions, scene order, transitions, framing, audio, duration, attribution, and the QC report.
 8. Approve only the exact MP4 and SHA-256 shown by the application. If the bytes change, repeat review and approval.
 
+## Owner approval lifecycle
+
+The approval layer is hash-bound and owner-scoped:
+
+1. The render worker registers a verified MP4 in private `gcf-video-outputs` and creates an `approvals` row with `status='pending'`.
+2. The app lists pending approvals through `gcf_list_pending_approvals`. The RPC filters by `auth.uid()`; it does not expose another owner's outputs.
+3. The app must display the exact output version, SHA-256, platform, aspect ratio, duration, quality status, and private preview. The owner should review the actual video, not just the workflow log or QC report.
+4. An approve/reject action must call `gcf_decide_render_output` with the approval ID, output ID, SHA-256, platform, and decision. The RPC checks the authenticated owner and exact version/hash/platform, and requires `quality_status='passed'` and the private output bucket.
+5. A repeated identical decision is idempotent. A conflicting second decision is rejected. A changed MP4 hash requires a new output version and new approval.
+6. Approval is not publication. There is no automatic publishing step in this pipeline.
+
+### Required app behavior still to verify
+
+- Show a playable private preview, not a public storage URL.
+- Display the full SHA-256 and a clear version label.
+- Provide separate approve and reject actions, with an optional note.
+- Confirm the result returned by the RPC and refresh the pending list.
+- Never show an approval button for a missing, rejected, or non-passing output.
+- Make the owner explicitly confirm before approving; do not treat opening or playing a video as approval.
+
 ## Current acceptance criteria
 
 - Final MP4 is H.264 video + AAC audio in the requested dimensions.
