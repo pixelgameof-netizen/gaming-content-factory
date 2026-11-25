@@ -119,6 +119,15 @@ jobs:
           d.update(json.load(open(p+".tmp")))
           json.dump(d,open(p,"w"))
           PY
+          cat > production/renderer-test/visual-profile.json <<'JSON'
+          {
+            "game_title": "SYNTHETIC GAME",
+            "kicker": "PIXEL GAME / VISUAL TEST",
+            "subhead": "A STORY TOLD IN FIVE CHAPTERS",
+            "chapters": ["ORIGIN", "DISCOVERY"],
+            "cta": "COMMENT YOUR FAVORITE MOMENT"
+          }
+          JSON
       - name: Render synthetic vertical test
         run: bash render/render_generic.sh renderer-test vertical artifacts/renderer-test.mp4
       - name: Run positive quality gate
