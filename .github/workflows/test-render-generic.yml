@@ -5,6 +5,8 @@ on:
   push:
     paths:
       - 'render/render_generic.sh'
+      - 'render/test_caption_grouping.py'
+      - 'render/align_voiceover_captions.py'
       - 'render/test_caption_layout.py'
       - 'render/quality_check.py'
       - 'render/upload_supabase_tus.py'
@@ -20,6 +22,8 @@ on:
   pull_request:
     paths:
       - 'render/render_generic.sh'
+      - 'render/test_caption_grouping.py'
+      - 'render/align_voiceover_captions.py'
       - 'render/quality_check.py'
       - 'render/upload_supabase_tus.py'
       - 'tests/**'
@@ -66,7 +70,8 @@ jobs:
       - name: Syntax check
         run: |
           bash -n render/render_generic.sh
-          python3 -m py_compile render/quality_check.py render/upload_supabase_tus.py render/generate_voiceover.py
+          python3 -m py_compile render/quality_check.py render/upload_supabase_tus.py render/generate_voiceover.py render/align_voiceover_captions.py render/test_caption_grouping.py
+          python3 render/test_caption_grouping.py
           python3 -m unittest discover -s tests -v
       - name: Verify WebM source normalization for approved render jobs
         run: |
