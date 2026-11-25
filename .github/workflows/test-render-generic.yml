@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'render/render_generic.sh'
+      - 'render/test_caption_layout.py'
       - 'render/quality_check.py'
       - 'render/upload_supabase_tus.py'
       - 'render/generate_voiceover.py'
