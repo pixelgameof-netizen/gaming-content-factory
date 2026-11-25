@@ -81,9 +81,9 @@ def clean(value, default, limit):
     return value[:limit].strip() or default
 def write(name, value):
     (out_dir/name).write_text(value, encoding="utf-8")
-game=clean(p.get("game_title") or p.get("headline"), "GAME FILE", 30).upper()
+game=clean(p.get("game_title") or p.get("headline"), "Game File", 30)
 kicker=clean(p.get("kicker"), "PIXEL GAME  /  HISTORIA GAMING", 48).upper()
-subhead=clean(p.get("subhead") or p.get("topic"), "HISTORIAS Y MOMENTOS QUE CAMBIARON LOS JUEGOS", 64).upper()
+subhead=clean(p.get("subhead") or p.get("topic"), "Historias y momentos que cambiaron los juegos", 64)
 cta=clean(p.get("cta"), "COMENTA TU MOMENTO FAVORITO", 48).upper()
 write("kicker.txt", kicker)
 write("game.txt", game)
@@ -92,7 +92,7 @@ write("cta.txt", cta)
 raw=p.get("chapters") if isinstance(p.get("chapters"), list) else []
 for i in range(count):
     fallback=f"ETAPA {i+1:02d}"
-    label=clean(raw[i] if i < len(raw) else fallback, fallback, 20).upper()
+    label=clean(raw[i] if i < len(raw) else fallback, fallback, 20)
     write(f"chapter-{i}.txt", label)
     write(f"stage-{i}.txt", label)
 PY
@@ -104,49 +104,23 @@ VOICE_DURATION="$(ffprobe -v error -show_entries format=duration -of default=nop
 TRANSITION_DURATION="0.25"
 SEGMENT_DURATION="$(awk -v duration="$VOICE_DURATION" -v count="$N" -v transition="$TRANSITION_DURATION" 'BEGIN { if (count < 1 || duration <= 0) exit 1; printf "%.3f", (duration+(count-1)*transition)/count }')"
 
-if [[ "$FORMAT" == "vertical" ]]; then
-  GAME_LENGTH="$(wc -m < "$VISUAL_DIR/game.txt")"
-  TITLE_SIZE=78
-  if (( GAME_LENGTH > 16 )); then TITLE_SIZE=62; fi
-  if (( GAME_LENGTH > 22 )); then TITLE_SIZE=50; fi
-fi
-
 for ((i=0;i<N;i++)); do
   if [[ "$FORMAT" == "vertical" ]]; then
     FILTER+="[$i:v]split=2[bg$i][fg$i];"
-    FILTER+="[bg$i]scale=$WIDTH:$HEIGHT:force_original_aspect_ratio=increase,crop=$WIDTH:$HEIGHT,boxblur=24:12,eq=brightness=-0.14:saturation=0.95[blur$i];"
+    FILTER+="[bg$i]scale=$WIDTH:$HEIGHT:force_original_aspect_ratio=increase,crop=$WIDTH:$HEIGHT,boxblur=18:8,eq=brightness=-0.24:saturation=0.48[blur$i];"
     FILTER+="[fg$i]scale=$WIDTH:$HEIGHT:force_original_aspect_ratio=decrease[fit$i];"
     FILTER+="[blur$i][fit$i]overlay=(W-w)/2:(H-h)/2[base$i];"
-    DECOR="drawbox=x=48:y=112:w=984:h=410:color=black@0.34:t=fill,"
-    DECOR+="drawbox=x=48:y=112:w=9:h=410:color=0x9DFF42@0.95:t=fill,"
-    DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/kicker.txt:fontcolor=0xC8F2A0:fontsize=21:x=82:y=148:shadowcolor=black@0.65:shadowx=2:shadowy=2,"
-    DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/game.txt:fontcolor=white:fontsize=$TITLE_SIZE:line_spacing=8:x=82:y=210:shadowcolor=black@0.7:shadowx=2:shadowy=3,"
-    DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/subhead.txt:fontcolor=0xE0E7E8:fontsize=27:x=84:y=356:shadowcolor=black@0.7:shadowx=2:shadowy=2,"
-    TRACK_X=70; TRACK_W=940; GAP=10
-    SEG_W=$(((TRACK_W-GAP*(N-1))/N))
-    for ((j=0;j<N;j++)); do
-      X=$((TRACK_X+j*(SEG_W+GAP)))
-      DECOR+="drawbox=x=$X:y=468:w=$SEG_W:h=8:color=white@0.25:t=fill,"
-      if ((j==i)); then
-        DECOR+="drawbox=x=$X:y=468:w=$SEG_W:h=8:color=0x9DFF42@0.98:t=fill,"
-      fi
-      if ((N<=6)); then
-        if ((j==i)); then LABEL_COLOR="0xC8F2A0"; else LABEL_COLOR="0xE5E7EB"; fi
-        DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/chapter-$j.txt:fontcolor=$LABEL_COLOR:fontsize=17:x=$X:y=492:shadowcolor=black@0.7:shadowx=1:shadowy=1,"
-      fi
-    done
-    DECOR+="drawbox=x=0:y=626:w=1080:h=3:color=white@0.72:t=fill,"
-    DECOR+="drawbox=x=48:y=1300:w=984:h=195:color=black@0.30:t=fill,"
-    DECOR+="drawbox=x=48:y=1300:w=9:h=195:color=0x9DFF42@0.95:t=fill,"
-    DECOR+="drawtext=fontfile=$FONT:text='ETAPA '$(printf '%02d' "$((i+1))")' / '$(printf '%02d' "$N"):fontcolor=0xC8F2A0:fontsize=20:x=82:y=1328:shadowcolor=black@0.7:shadowx=1:shadowy=1,"
-    DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/stage-$i.txt:fontcolor=white:fontsize=50:x=82:y=1365:shadowcolor=black@0.75:shadowx=2:shadowy=3,"
-    if ((i==N-1)); then
-      DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/cta.txt:fontcolor=0xE5F5D5:fontsize=20:x=84:y=1435:shadowcolor=black@0.75:shadowx=1:shadowy=2,"
-    else
-      DECOR+="drawtext=fontfile=$FONT:text='LA HISTORIA SIGUE':fontcolor=0xB8C2C8:fontsize=18:x=84:y=1438:shadowcolor=black@0.7:shadowx=1:shadowy=1,"
+
+    # Keep the opening title only on the first shot; use a small chapter marker thereafter.
+    DECOR=""
+    if ((i==0)); then
+      DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/game.txt:fontcolor=white:fontsize=56:x=72:y=176:shadowcolor=black@0.45:shadowx=1:shadowy=2,"
+      DECOR+="drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:textfile=$VISUAL_DIR/subhead.txt:fontcolor=0xE8E8E3:fontsize=25:x=76:y=250:shadowcolor=black@0.45:shadowx=1:shadowy=1,"
+      DECOR+="drawbox=x=74:y=306:w=92:h=3:color=0xAAB89C@0.82:t=fill,"
     fi
-    DECOR+="drawbox=x=70:y=1788:w=940:h=2:color=white@0.28:t=fill,"
-    DECOR+="drawtext=fontfile=$FONT:text='PIXEL GAME  /  ARCHIVO GAMING':fontcolor=0xD1D9D9:fontsize=17:x=70:y=1810:shadowcolor=black@0.6:shadowx=1:shadowy=1"
+    DECOR+="drawbox=x=72:y=1300:w=3:h=54:color=0xAAB89C@0.90:t=fill,"
+    DECOR+="drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='$(printf '%02d' "$((i+1))")':fontcolor=0xD5D8CF:fontsize=20:x=94:y=1306:shadowcolor=black@0.45:shadowx=1:shadowy=1,"
+    DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/chapter-$i.txt:fontcolor=white:fontsize=36:x=146:y=1292:shadowcolor=black@0.48:shadowx=1:shadowy=2"
     FILTER+="[base$i]$DECOR,trim=duration=$SEGMENT_DURATION,tpad=stop_mode=clone:stop_duration=$SEGMENT_DURATION,trim=duration=$SEGMENT_DURATION,setpts=PTS-STARTPTS,setsar=1,fps=30,settb=AVTB,format=yuv420p[v$i];"
   else
     FILTER+="[$i:v]scale=$WIDTH:$HEIGHT:force_original_aspect_ratio=increase,crop=$WIDTH:$HEIGHT,"
@@ -161,7 +135,7 @@ else
   for ((i=1;i<N;i++)); do
     OFFSET="$(awk -v segment="$SEGMENT_DURATION" -v transition="$TRANSITION_DURATION" -v count="$i" 'BEGIN { printf "%.3f", count*(segment-transition) }')"
     TRANSITION="fade"
-    if [[ "$FORMAT" == "vertical" ]]; then TRANSITION="pixelize"; fi
+    if [[ "$FORMAT" == "vertical" ]]; then TRANSITION="fade"; fi
     FILTER+="$PREVIOUS[v$i]xfade=transition=$TRANSITION:duration=$TRANSITION_DURATION:offset=$OFFSET[x$i];"
     PREVIOUS="[x$i]"
   done
