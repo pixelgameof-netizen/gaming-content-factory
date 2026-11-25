@@ -7,6 +7,7 @@ on:
       - "render/upload_supabase_tus.py"
       - "render/render_generic.sh"
       - "render/test_caption_layout.py"
+      - "render/align_voiceover_captions.py"
       - ".github/workflows/render-job.yml"
   workflow_dispatch:
     inputs:
