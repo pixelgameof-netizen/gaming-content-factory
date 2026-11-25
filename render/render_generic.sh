@@ -109,7 +109,7 @@ for ((i=0;i<N;i++)); do
     FILTER+="[$i:v]split=2[bg$i][fg$i];"
     FILTER+="[bg$i]scale=$WIDTH:$HEIGHT:force_original_aspect_ratio=increase,crop=$WIDTH:$HEIGHT,boxblur=18:8,eq=brightness=-0.24:saturation=0.48[blur$i];"
     FILTER+="[fg$i]scale=$WIDTH:$HEIGHT:force_original_aspect_ratio=decrease[fit$i];"
-    FILTER+="[blur$i][fit$i]overlay=(W-w)/2:min(500,(H-h)*0.5)[base$i];"
+    FILTER+="[blur$i][fit$i]overlay=(W-w)/2:(H-h)/2[base$i];"
 
     # Keep the opening title only on the first shot; use a small chapter marker thereafter.
     DECOR=""
