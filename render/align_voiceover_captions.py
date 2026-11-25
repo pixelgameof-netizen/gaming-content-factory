@@ -7,7 +7,6 @@ import json
 import re
 import wave
 from pathlib import Path
-from vosk import Model, KaldiRecognizer
 
 def normalize_token(text: str) -> str:
     return "".join(re.findall(r"[a-z0-9áéíóúüñ]", text.lower()))
@@ -19,6 +18,32 @@ def srt_time(seconds: float) -> str:
     secs, millis = divmod(remainder, 1000)
     return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
 
+def normalize_overlapping_groups(groups):
+    """Merge short adjacent caption groups whose ASR timings overlap."""
+    normalized = []
+    for group in groups:
+        current = [dict(word) for word in group]
+        if not current:
+            continue
+        if normalized and current[0]["start"] < normalized[-1][-1]["end"]:
+            previous = normalized[-1]
+            combined = previous + current
+            combined_text = " ".join(word["text"] for word in combined).strip()
+            if len(combined) <= 6 and len(combined_text) <= 42:
+                previous.extend(current)
+                continue
+            safe_end = current[0]["start"] - 0.04
+            minimum_end = previous[-1]["start"] + 0.08
+            if safe_end >= minimum_end:
+                previous[-1]["end"] = safe_end
+            else:
+                shift = previous[-1]["end"] + 0.04 - current[0]["start"]
+                for word in current:
+                    word["start"] += shift
+                    word["end"] += shift
+        normalized.append(current)
+    return normalized
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--audio", required=True)
@@ -26,6 +51,8 @@ def main() -> None:
     parser.add_argument("--captions", required=True)
     parser.add_argument("--model", required=True)
     args = parser.parse_args()
+
+    from vosk import Model, KaldiRecognizer
 
     expected = Path(args.expected_text).read_text(encoding="utf-8").strip()
     expected_tokens = re.findall(r"\S+", expected)
@@ -104,6 +131,8 @@ def main() -> None:
             current = candidate
     if current:
         groups.append(current)
+
+    groups = normalize_overlapping_groups(groups)
 
     output = []
     for index, group in enumerate(groups, 1):
