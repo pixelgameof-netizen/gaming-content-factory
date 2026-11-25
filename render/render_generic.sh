@@ -14,7 +14,7 @@ FONT="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 case "$FORMAT" in
   vertical)
     WIDTH=1080; HEIGHT=1920; RATIO="9:16"
-    CAPTION_STYLE="FontName=DejaVu Sans,FontSize=10,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&HCC000000,BorderStyle=1,Outline=1,Shadow=1,Alignment=2,MarginL=30,MarginR=30,MarginV=24"
+    CAPTION_STYLE="FontName=DejaVu Sans,FontSize=12,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&HCC000000,BorderStyle=1,Outline=2,Shadow=1,Alignment=2,MarginL=34,MarginR=34,MarginV=48"
     ;;
   horizontal)
     WIDTH=1920; HEIGHT=1080; RATIO="16:9"
@@ -83,12 +83,20 @@ def write(name, value):
     (out_dir/name).write_text(value, encoding="utf-8")
 game=clean(p.get("game_title") or p.get("headline"), "Game File", 30)
 kicker=clean(p.get("kicker"), "PIXEL GAME  /  HISTORIA GAMING", 48).upper()
+hook=clean(p.get("hook") or p.get("subhead") or p.get("topic"), "UNA HISTORIA QUE CAMBIÓ EL GAMING", 62)
 subhead=clean(p.get("subhead") or p.get("topic"), "Historias y momentos que cambiaron los juegos", 64)
-cta=clean(p.get("cta"), "COMENTA TU MOMENTO FAVORITO", 48).upper()
+cta=clean(p.get("cta"), "¿QUÉ JUEGO QUIERES VER DESPUÉS?", 48).upper()
+follow=clean(p.get("follow_cta"), "SÍGUENOS PARA MÁS HISTORIAS GAMING", 52).upper()
+visual_style=clean(p.get("visual_style"), "pixel_game_impact", 32).lower()
+if visual_style not in {"pixel_game_impact", "editorial_minimal"}:
+    raise SystemExit(f"Unsupported visual_style: {visual_style}")
+write("visual-style.txt", visual_style)
 write("kicker.txt", kicker)
 write("game.txt", game)
+write("hook.txt", hook)
 write("subhead.txt", subhead)
 write("cta.txt", cta)
+write("follow-cta.txt", follow)
 raw=p.get("chapters") if isinstance(p.get("chapters"), list) else []
 for i in range(count):
     fallback=f"ETAPA {i+1:02d}"
@@ -96,6 +104,8 @@ for i in range(count):
     write(f"chapter-{i}.txt", label)
     write(f"stage-{i}.txt", label)
 PY
+
+VISUAL_STYLE="$(cat "$VISUAL_DIR/visual-style.txt")"
 
 INPUTS=()
 FILTER=""
@@ -107,20 +117,43 @@ SEGMENT_DURATION="$(awk -v duration="$VOICE_DURATION" -v count="$N" -v transitio
 for ((i=0;i<N;i++)); do
   if [[ "$FORMAT" == "vertical" ]]; then
     FILTER+="[$i:v]split=2[bg$i][fg$i];"
-    FILTER+="[bg$i]scale=$WIDTH:$HEIGHT:force_original_aspect_ratio=increase,crop=$WIDTH:$HEIGHT,boxblur=18:8,eq=brightness=-0.24:saturation=0.48[blur$i];"
-    FILTER+="[fg$i]scale=$WIDTH:$HEIGHT:force_original_aspect_ratio=decrease[fit$i];"
+    FILTER+="[bg$i]scale=$WIDTH:$HEIGHT:force_original_aspect_ratio=increase,crop=$WIDTH:$HEIGHT,boxblur=16:8,eq=brightness=-0.20:saturation=0.58[blur$i];"
+    FILTER+="[fg$i]scale=$WIDTH:$HEIGHT:force_original_aspect_ratio=decrease,eq=contrast=1.04:saturation=1.06:brightness=0.01[fit$i];"
     FILTER+="[blur$i][fit$i]overlay=(W-w)/2:(H-h)/2[base$i];"
 
-    # Keep the opening title only on the first shot; use a small chapter marker thereafter.
     DECOR=""
-    if ((i==0)); then
-      DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/game.txt:fontcolor=white:fontsize=56:x=72:y=176:shadowcolor=black@0.45:shadowx=1:shadowy=2,"
-      DECOR+="drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:textfile=$VISUAL_DIR/subhead.txt:fontcolor=0xE8E8E3:fontsize=25:x=76:y=250:shadowcolor=black@0.45:shadowx=1:shadowy=1,"
-      DECOR+="drawbox=x=74:y=306:w=92:h=3:color=0xAAB89C@0.82:t=fill,"
+    if [[ "$VISUAL_STYLE" == "pixel_game_impact" ]]; then
+      # The opening hook is bold but brief; the gameplay remains the visual anchor.
+      DECOR+="drawtext=fontfile=$FONT:text='PIXEL GAME':fontcolor=0xB7F36B:fontsize=22:x=w-text_w-68:y=54:shadowcolor=black@0.55:shadowx=1:shadowy=1"
+      if ((i==0)); then
+        DECOR+=",drawbox=x=54:y=76:w=972:h=254:color=0x080D13@0.58:t=fill,"
+        DECOR+="drawbox=x=54:y=76:w=8:h=254:color=0xB7F36B@0.98:t=fill,"
+        DECOR+="drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:textfile=$VISUAL_DIR/kicker.txt:fontcolor=0xB7F36B:fontsize=22:x=88:y=98:shadowcolor=black@0.4:shadowx=1:shadowy=1,"
+        DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/game.txt:fontcolor=white:fontsize=60:x=86:y=142:shadowcolor=black@0.5:shadowx=1:shadowy=2,"
+        DECOR+="drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:textfile=$VISUAL_DIR/hook.txt:fontcolor=0xF0F1EA:fontsize=27:x=90:y=232:shadowcolor=black@0.45:shadowx=1:shadowy=1"
+      fi
+      DECOR+=",drawbox=x=54:y=1276:w=650:h=82:color=0x080D13@0.58:t=fill,"
+      DECOR+="drawbox=x=54:y=1276:w=6:h=82:color=0xB7F36B@0.98:t=fill,"
+      DECOR+="drawbox=x=76:y=1293:w=48:h=48:color=0xB7F36B@0.98:t=fill,"
+      DECOR+="drawtext=fontfile=$FONT:text='$(printf '%02d' "$((i+1))")':fontcolor=0x101510:fontsize=22:x=88:y=1303,"
+      DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/chapter-$i.txt:fontcolor=white:fontsize=35:x=146:y=1293:shadowcolor=black@0.5:shadowx=1:shadowy=1"
+      if ((i==N-1)); then
+        DECOR+=",drawbox=x=54:y=1380:w=972:h=116:color=0x080D13@0.82:t=fill,"
+        DECOR+="drawbox=x=54:y=1380:w=6:h=116:color=0xB7F36B@0.98:t=fill,"
+        DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/cta.txt:fontcolor=0xB7F36B:fontsize=29:x=82:y=1396:shadowcolor=black@0.4:shadowx=1:shadowy=1,"
+        DECOR+="drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:textfile=$VISUAL_DIR/follow-cta.txt:fontcolor=white:fontsize=21:x=84:y=1447:shadowcolor=black@0.4:shadowx=1:shadowy=1"
+      fi
+    else
+      # Editorial minimal stays available for slower documentary pieces.
+      if ((i==0)); then
+        DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/game.txt:fontcolor=white:fontsize=56:x=72:y=176:shadowcolor=black@0.45:shadowx=1:shadowy=2,"
+        DECOR+="drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:textfile=$VISUAL_DIR/subhead.txt:fontcolor=0xE8E8E3:fontsize=25:x=76:y=250:shadowcolor=black@0.45:shadowx=1:shadowy=1,"
+        DECOR+="drawbox=x=74:y=306:w=92:h=3:color=0xAAB89C@0.82:t=fill,"
+      fi
+      DECOR+="drawbox=x=72:y=1300:w=3:h=54:color=0xAAB89C@0.90:t=fill,"
+      DECOR+="drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='$(printf '%02d' "$((i+1))")':fontcolor=0xD5D8CF:fontsize=20:x=94:y=1306:shadowcolor=black@0.45:shadowx=1:shadowy=1,"
+      DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/chapter-$i.txt:fontcolor=white:fontsize=36:x=146:y=1292:shadowcolor=black@0.48:shadowx=1:shadowy=2"
     fi
-    DECOR+="drawbox=x=72:y=1300:w=3:h=54:color=0xAAB89C@0.90:t=fill,"
-    DECOR+="drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='$(printf '%02d' "$((i+1))")':fontcolor=0xD5D8CF:fontsize=20:x=94:y=1306:shadowcolor=black@0.45:shadowx=1:shadowy=1,"
-    DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/chapter-$i.txt:fontcolor=white:fontsize=36:x=146:y=1292:shadowcolor=black@0.48:shadowx=1:shadowy=2"
     FILTER+="[base$i]$DECOR,trim=duration=$SEGMENT_DURATION,tpad=stop_mode=clone:stop_duration=$SEGMENT_DURATION,trim=duration=$SEGMENT_DURATION,setpts=PTS-STARTPTS,setsar=1,fps=30,settb=AVTB,format=yuv420p[v$i];"
   else
     FILTER+="[$i:v]scale=$WIDTH:$HEIGHT:force_original_aspect_ratio=increase,crop=$WIDTH:$HEIGHT,"
