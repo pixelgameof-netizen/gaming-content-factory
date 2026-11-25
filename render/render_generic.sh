@@ -12,12 +12,14 @@ RIGHTS="${ROOT}/rights-review.json"
 case "$FORMAT" in
   vertical)
     WIDTH=1080; HEIGHT=1920; RATIO="9:16"
-    # Short-form captions: bold, high-contrast, centered in the lower safe area.
-    CAPTION_STYLE="FontName=DejaVu Sans,FontSize=64,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&HCC000000,BorderStyle=1,Outline=4,Shadow=1,Alignment=2,MarginL=84,MarginR=84,MarginV=270"
+    # SRT is converted by libass on a 384x288 canvas. Scale 1080x1920 design values
+    # into that canvas; otherwise 64px/270px are magnified and captions are clipped above frame.
+    CAPTION_STYLE="FontName=DejaVu Sans,FontSize=10,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&HCC000000,BorderStyle=1,Outline=1,Shadow=1,Alignment=2,MarginL=30,MarginR=30,MarginV=40"
     ;;
   horizontal)
     WIDTH=1920; HEIGHT=1080; RATIO="16:9"
-    CAPTION_STYLE="FontName=DejaVu Sans,FontSize=48,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&HCC000000,BorderStyle=1,Outline=3,Shadow=1,Alignment=2,MarginL=120,MarginR=120,MarginV=84"
+    # Same 384x288 SRT canvas, scaled for the 1920x1080 output.
+    CAPTION_STYLE="FontName=DejaVu Sans,FontSize=13,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&HCC000000,BorderStyle=1,Outline=1,Shadow=1,Alignment=2,MarginL=24,MarginR=24,MarginV=22"
     ;;
   *) echo "Unsupported format: $FORMAT" >&2; exit 2 ;;
 esac
