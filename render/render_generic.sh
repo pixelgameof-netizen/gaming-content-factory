@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# Reusable FFmpeg renderer. Requires approved clips and final narration.
+# Reusable FFmpeg renderer. Requires approved clips and final narration; SRT style dimensions follow libass's 384x288 script canvas.
 EPISODE="${1:?Usage: render_generic.sh <episode> <vertical|horizontal> [output.mp4]}"
 FORMAT="${2:?Format must be vertical or horizontal}"
 OUTPUT="${3:-artifacts/${EPISODE}.mp4}"
