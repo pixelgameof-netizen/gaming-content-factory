@@ -14,7 +14,7 @@ FONT="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 case "$FORMAT" in
   vertical)
     WIDTH=1080; HEIGHT=1920; RATIO="9:16"
-    CAPTION_STYLE="FontName=DejaVu Sans,FontSize=10,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&HCC000000,BorderStyle=1,Outline=1,Shadow=1,Alignment=2,MarginL=30,MarginR=30,MarginV=40"
+    CAPTION_STYLE="FontName=DejaVu Sans,FontSize=10,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&HCC000000,BorderStyle=1,Outline=1,Shadow=1,Alignment=2,MarginL=30,MarginR=30,MarginV=24"
     ;;
   horizontal)
     WIDTH=1920; HEIGHT=1080; RATIO="16:9"
@@ -136,14 +136,14 @@ for ((i=0;i<N;i++)); do
       fi
     done
     DECOR+="drawbox=x=0:y=626:w=1080:h=3:color=white@0.72:t=fill,"
-    DECOR+="drawbox=x=48:y=1310:w=984:h=310:color=black@0.30:t=fill,"
-    DECOR+="drawbox=x=48:y=1310:w=9:h=310:color=0x9DFF42@0.95:t=fill,"
-    DECOR+="drawtext=fontfile=$FONT:text='ETAPA '$(printf '%02d' "$((i+1))")' / '$(printf '%02d' "$N"):fontcolor=0xC8F2A0:fontsize=22:x=82:y=1350:shadowcolor=black@0.7:shadowx=1:shadowy=1,"
-    DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/stage-$i.txt:fontcolor=white:fontsize=58:x=82:y=1400:shadowcolor=black@0.75:shadowx=2:shadowy=3,"
+    DECOR+="drawbox=x=48:y=1300:w=984:h=195:color=black@0.30:t=fill,"
+    DECOR+="drawbox=x=48:y=1300:w=9:h=195:color=0x9DFF42@0.95:t=fill,"
+    DECOR+="drawtext=fontfile=$FONT:text='ETAPA '$(printf '%02d' "$((i+1))")' / '$(printf '%02d' "$N"):fontcolor=0xC8F2A0:fontsize=20:x=82:y=1328:shadowcolor=black@0.7:shadowx=1:shadowy=1,"
+    DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/stage-$i.txt:fontcolor=white:fontsize=50:x=82:y=1365:shadowcolor=black@0.75:shadowx=2:shadowy=3,"
     if ((i==N-1)); then
-      DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/cta.txt:fontcolor=0xE5F5D5:fontsize=24:x=84:y=1510:shadowcolor=black@0.75:shadowx=1:shadowy=2,"
+      DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/cta.txt:fontcolor=0xE5F5D5:fontsize=20:x=84:y=1435:shadowcolor=black@0.75:shadowx=1:shadowy=2,"
     else
-      DECOR+="drawtext=fontfile=$FONT:text='LA HISTORIA SIGUE':fontcolor=0xB8C2C8:fontsize=20:x=84:y=1512:shadowcolor=black@0.7:shadowx=1:shadowy=1,"
+      DECOR+="drawtext=fontfile=$FONT:text='LA HISTORIA SIGUE':fontcolor=0xB8C2C8:fontsize=18:x=84:y=1438:shadowcolor=black@0.7:shadowx=1:shadowy=1,"
     fi
     DECOR+="drawbox=x=70:y=1788:w=940:h=2:color=white@0.28:t=fill,"
     DECOR+="drawtext=fontfile=$FONT:text='PIXEL GAME  /  ARCHIVO GAMING':fontcolor=0xD1D9D9:fontsize=17:x=70:y=1810:shadowcolor=black@0.6:shadowx=1:shadowy=1"
