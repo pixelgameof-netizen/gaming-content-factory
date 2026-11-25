@@ -25,22 +25,26 @@ def normalize_overlapping_groups(groups):
         current = [dict(word) for word in group]
         if not current:
             continue
-        if normalized and current[0]["start"] < normalized[-1][-1]["end"]:
+        if normalized:
             previous = normalized[-1]
-            combined = previous + current
-            combined_text = " ".join(word["text"] for word in combined).strip()
-            if len(combined) <= 6 and len(combined_text) <= 42:
-                previous.extend(current)
-                continue
-            safe_end = current[0]["start"] - 0.04
-            minimum_end = previous[-1]["start"] + 0.08
-            if safe_end >= minimum_end:
-                previous[-1]["end"] = safe_end
-            else:
-                shift = previous[-1]["end"] + 0.04 - current[0]["start"]
-                for word in current:
-                    word["start"] += shift
-                    word["end"] += shift
+            # The SRT writer below enforces a 250 ms minimum cue duration.
+            # Compare against that effective display end, not only ASR word end.
+            previous_cue_end = max(previous[0]["start"] + 0.25, previous[-1]["end"])
+            if current[0]["start"] < previous_cue_end:
+                combined = previous + current
+                combined_text = " ".join(word["text"] for word in combined).strip()
+                if len(combined) <= 6 and len(combined_text) <= 42:
+                    previous.extend(current)
+                    continue
+                safe_end = current[0]["start"] - 0.04
+                minimum_end = max(previous[0]["start"] + 0.25, previous[-1]["start"] + 0.08)
+                if safe_end >= minimum_end:
+                    previous[-1]["end"] = safe_end
+                else:
+                    shift = previous_cue_end + 0.04 - current[0]["start"]
+                    for word in current:
+                        word["start"] += shift
+                        word["end"] += shift
         normalized.append(current)
     return normalized
 
