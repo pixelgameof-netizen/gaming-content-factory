@@ -20,7 +20,7 @@ PRESETS = {
             "FontName=DejaVu Sans,FontSize=10,Bold=1,"
             "PrimaryColour=&H00FFFFFF,OutlineColour=&HCC000000,"
             "BorderStyle=1,Outline=1,Shadow=1,Alignment=2,"
-            "MarginL=30,MarginR=30,MarginV=40"
+            "MarginL=30,MarginR=30,MarginV=24"
         ),
     },
     "horizontal": {
