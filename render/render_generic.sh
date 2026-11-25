@@ -105,6 +105,8 @@ for i in range(count):
     write(f"stage-{i}.txt", label)
 PY
 
+VISUAL_STYLE="$(cat "$VISUAL_DIR/visual-style.txt")"
+
 INPUTS=()
 FILTER=""
 for f in "${SCENES[@]}"; do INPUTS+=( -i "$f" ); done
