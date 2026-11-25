@@ -124,9 +124,9 @@ for ((i=0;i<N;i++)); do
     DECOR=""
     if [[ "$VISUAL_STYLE" == "pixel_game_impact" ]]; then
       # The opening hook is bold but brief; the gameplay remains the visual anchor.
-      DECOR+="drawtext=fontfile=$FONT:text='PIXEL GAME':fontcolor=0xB7F36B:fontsize=22:x=w-text_w-68:y=54:shadowcolor=black@0.55:shadowx=1:shadowy=1,"
+      DECOR+="drawtext=fontfile=$FONT:text='PIXEL GAME':fontcolor=0xB7F36B:fontsize=22:x=w-text_w-68:y=54:shadowcolor=black@0.55:shadowx=1:shadowy=1"
       if ((i==0)); then
-        DECOR+="drawbox=x=54:y=76:w=972:h=254:color=0x080D13@0.58:t=fill,"
+        DECOR+=",drawbox=x=54:y=76:w=972:h=254:color=0x080D13@0.58:t=fill,"
         DECOR+="drawbox=x=54:y=76:w=8:h=254:color=0xB7F36B@0.98:t=fill,"
         DECOR+="drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:textfile=$VISUAL_DIR/kicker.txt:fontcolor=0xB7F36B:fontsize=22:x=88:y=98:shadowcolor=black@0.4:shadowx=1:shadowy=1,"
         DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/game.txt:fontcolor=white:fontsize=60:x=86:y=142:shadowcolor=black@0.5:shadowx=1:shadowy=2,"
