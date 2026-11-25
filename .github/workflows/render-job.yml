@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "render/upload_supabase_tus.py"
+      - "render/render_generic.sh"
+      - "render/test_caption_layout.py"
       - ".github/workflows/render-job.yml"
   workflow_dispatch:
     inputs:
@@ -39,6 +41,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Verify subtitle safe-area rendering
+        run: python3 render/test_caption_layout.py
 
       - name: Claim job and fetch approved assets
         id: prepare
