@@ -15,13 +15,14 @@ def word(text, start, end):
 class CaptionGroupingTests(unittest.TestCase):
     def test_short_overlapping_sentence_boundary_is_merged(self):
         groups = [
-            [word("él.", 23.76, 24.01)],
+            [word("él.", 23.76, 23.94)],
             [
                 word("¿Qué", 24.00, 24.18),
                 word("versión", 24.18, 24.52),
                 word("elegirías?", 24.52, 25.169),
             ],
         ]
+        # Raw ASR timestamps do not overlap, but the 250 ms SRT minimum would.
         result = normalize_overlapping_groups(groups)
         self.assertEqual(len(result), 1)
         self.assertEqual(
