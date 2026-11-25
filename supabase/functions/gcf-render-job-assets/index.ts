@@ -84,7 +84,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Unsupported output aspect ratio" }, 422);
   }
 
-  const manifest = job.manifest as { assets?: unknown; narration_text?: unknown };
+  const manifest = job.manifest as { assets?: unknown; narration_text?: unknown; kicker?: unknown; subhead?: unknown; chapters?: unknown; cta?: unknown };
   if (!manifest || !Array.isArray(manifest.assets) || manifest.assets.length < 1 || manifest.assets.length > 20) {
     return json({ error: "Manifest must contain between 1 and 20 assets" }, 422);
   }
@@ -208,6 +208,14 @@ Deno.serve(async (req: Request) => {
     files.push({ file_name: fileName, role, mime_type: asset.mime_type, url: signed.signedUrl, sha256: asset.sha256 ?? null, rights });
   }
 
+  const { data: packageDetails, error: packageError } = await admin
+    .from("content_packages")
+    .select("game_title,topic")
+    .eq("id", job.package_id)
+    .eq("owner_id", job.owner_id)
+    .maybeSingle();
+  if (packageError) return json({ error: "Unable to load content package details" }, 500);
+
   const narrationText = typeof manifest.narration_text === "string" ? manifest.narration_text.trim() : "";
   if (sceneCount < 1 || voiceCount > 1 ||
       (voiceCount === 0 && (narrationText.length < 80 || narrationText.length > 8000)) ||
@@ -220,6 +228,12 @@ Deno.serve(async (req: Request) => {
     output_type: job.output_type,
     platform: job.platform,
     aspect_ratio: job.aspect_ratio,
+    game_title: packageDetails?.game_title ?? null,
+    topic: packageDetails?.topic ?? null,
+    kicker: typeof manifest.kicker === "string" ? manifest.kicker : null,
+    subhead: typeof manifest.subhead === "string" ? manifest.subhead : null,
+    chapters: Array.isArray(manifest.chapters) ? manifest.chapters.filter((item): item is string => typeof item === "string").slice(0, 20) : null,
+    cta: typeof manifest.cta === "string" ? manifest.cta : null,
     narration_text: narrationText || null,
     expires_in: URL_TTL_SECONDS,
     files,
