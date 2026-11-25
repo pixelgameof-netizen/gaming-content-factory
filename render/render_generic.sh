@@ -118,9 +118,9 @@ for ((i=0;i<N;i++)); do
       DECOR+="drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:textfile=$VISUAL_DIR/subhead.txt:fontcolor=0xE8E8E3:fontsize=25:x=76:y=250:shadowcolor=black@0.45:shadowx=1:shadowy=1,"
       DECOR+="drawbox=x=74:y=306:w=92:h=3:color=0xAAB89C@0.82:t=fill,"
     fi
-    DECOR+="drawbox=x=72:y=1146:w=3:h=54:color=0xAAB89C@0.90:t=fill,"
-    DECOR+="drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='$(printf '%02d' "$((i+1))")':fontcolor=0xD5D8CF:fontsize=20:x=94:y=1152:shadowcolor=black@0.45:shadowx=1:shadowy=1,"
-    DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/chapter-$i.txt:fontcolor=white:fontsize=36:x=146:y=1138:shadowcolor=black@0.48:shadowx=1:shadowy=2"
+    DECOR+="drawbox=x=72:y=1300:w=3:h=54:color=0xAAB89C@0.90:t=fill,"
+    DECOR+="drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:text='$(printf '%02d' "$((i+1))")':fontcolor=0xD5D8CF:fontsize=20:x=94:y=1306:shadowcolor=black@0.45:shadowx=1:shadowy=1,"
+    DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/chapter-$i.txt:fontcolor=white:fontsize=36:x=146:y=1292:shadowcolor=black@0.48:shadowx=1:shadowy=2"
     FILTER+="[base$i]$DECOR,trim=duration=$SEGMENT_DURATION,tpad=stop_mode=clone:stop_duration=$SEGMENT_DURATION,trim=duration=$SEGMENT_DURATION,setpts=PTS-STARTPTS,setsar=1,fps=30,settb=AVTB,format=yuv420p[v$i];"
   else
     FILTER+="[$i:v]scale=$WIDTH:$HEIGHT:force_original_aspect_ratio=increase,crop=$WIDTH:$HEIGHT,"
