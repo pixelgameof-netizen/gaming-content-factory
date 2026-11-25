@@ -173,12 +173,12 @@ AUDIO_INDEX=$N
 if [[ -f "$MEDIA/music.wav" ]]; then
   INPUTS+=( -i "$MEDIA/music.wav" )
   MUSIC_INDEX=$((N+1))
-  AUDIO="[\${AUDIO_INDEX}:a]aresample=48000,volume=1.0[voice];[\${MUSIC_INDEX}:a]aresample=48000,volume=0.12[music];[voice][music]amix=inputs=2:duration=first:dropout_transition=2[aout]"
+  AUDIO="[${AUDIO_INDEX}:a]aresample=48000,volume=1.0[voice];[${MUSIC_INDEX}:a]aresample=48000,volume=0.12[music];[voice][music]amix=inputs=2:duration=first:dropout_transition=2[aout]"
 else
-  AUDIO="[\${AUDIO_INDEX}:a]aresample=48000,volume=1.0[aout]"
+  AUDIO="[${AUDIO_INDEX}:a]aresample=48000,volume=1.0[aout]"
 fi
 
-ffmpeg -hide_banner -y "\${INPUTS[@]}" -filter_complex "$FILTER;$AUDIO" \
+ffmpeg -hide_banner -y "${INPUTS[@]}" -filter_complex "$FILTER;$AUDIO" \
   -map '[vout]' -map '[aout]' -shortest -c:v libx264 -preset veryfast -crf 20 \
   -pix_fmt yuv420p -c:a aac -b:a 192k -ar 48000 -movflags +faststart "$OUTPUT"
 
