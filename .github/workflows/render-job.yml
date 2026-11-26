@@ -174,13 +174,16 @@ jobs:
           TOPIC="$(jq -r '.topic // empty' "$RESPONSE_FILE")"
           KICKER="$(jq -r '.kicker // empty' "$RESPONSE_FILE")"
           SUBHEAD="$(jq -r '.subhead // empty' "$RESPONSE_FILE")"
+          HOOK="$(jq -r '.hook // empty' "$RESPONSE_FILE")"
           CTA="$(jq -r '.cta // empty' "$RESPONSE_FILE")"
+          FOLLOW_CTA="$(jq -r '.follow_cta // empty' "$RESPONSE_FILE")"
           CHAPTERS="$(jq -c '.chapters // []' "$RESPONSE_FILE")"
           jq -n \
             --arg game_title "$GAME_TITLE" --arg topic "$TOPIC" \
             --arg kicker "$KICKER" --arg subhead "$SUBHEAD" \
-            --arg cta "$CTA" --argjson chapters "$CHAPTERS" \
-            '{game_title:$game_title,topic:$topic,kicker:$kicker,subhead:$subhead,cta:$cta,chapters:$chapters}' \
+            --arg hook "$HOOK" --arg cta "$CTA" --arg follow_cta "$FOLLOW_CTA" \
+            --argjson chapters "$CHAPTERS" \
+            '{game_title:$game_title,topic:$topic,kicker:$kicker,subhead:$subhead,hook:$hook,cta:$cta,follow_cta:$follow_cta,chapters:$chapters}' \
             > "$ROOT/visual-profile.json"
 
           ASPECT="$(jq -er '.aspect_ratio' "$RESPONSE_FILE")"
