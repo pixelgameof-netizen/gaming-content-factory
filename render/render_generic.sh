@@ -118,7 +118,9 @@ for ((i=0;i<N;i++)); do
   if [[ "$FORMAT" == "vertical" ]]; then
     FILTER+="[$i:v]split=2[bg$i][fg$i];"
     FILTER+="[bg$i]scale=$WIDTH:$HEIGHT:force_original_aspect_ratio=increase,crop=$WIDTH:$HEIGHT,boxblur=16:8,eq=brightness=-0.20:saturation=0.58[blur$i];"
-    FILTER+="[fg$i]scale=$WIDTH:$HEIGHT:force_original_aspect_ratio=decrease,eq=contrast=1.04:saturation=1.06:brightness=0.01[fit$i];"
+    # Enlarge the gameplay layer to 1080x960 before centering it. This keeps
+    # the full HUD readable while giving the game substantially more screen area.
+    FILTER+="[fg$i]scale=1706:-2,crop=$WIDTH:960:(iw-$WIDTH)/2:(ih-960)/2,eq=contrast=1.04:saturation=1.06:brightness=0.01[fit$i];"
     FILTER+="[blur$i][fit$i]overlay=(W-w)/2:(H-h)/2[base$i];"
 
     DECOR=""
@@ -138,10 +140,10 @@ for ((i=0;i<N;i++)); do
       DECOR+="drawtext=fontfile=$FONT:text='$(printf '%02d' "$((i+1))")':fontcolor=0x101510:fontsize=22:x=88:y=1303,"
       DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/chapter-$i.txt:fontcolor=white:fontsize=35:x=146:y=1293:shadowcolor=black@0.5:shadowx=1:shadowy=1"
       if ((i==N-1)); then
-        DECOR+=",drawbox=x=54:y=1380:w=972:h=116:color=0x080D13@0.82:t=fill,"
-        DECOR+="drawbox=x=54:y=1380:w=6:h=116:color=0xB7F36B@0.98:t=fill,"
-        DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/cta.txt:fontcolor=0xB7F36B:fontsize=29:x=82:y=1396:shadowcolor=black@0.4:shadowx=1:shadowy=1,"
-        DECOR+="drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:textfile=$VISUAL_DIR/follow-cta.txt:fontcolor=white:fontsize=21:x=84:y=1447:shadowcolor=black@0.4:shadowx=1:shadowy=1"
+        DECOR+=",drawbox=x=54:y=1100:w=972:h=116:color=0x080D13@0.88:t=fill,"
+        DECOR+="drawbox=x=54:y=1100:w=6:h=116:color=0xB7F36B@0.98:t=fill,"
+        DECOR+="drawtext=fontfile=$FONT:textfile=$VISUAL_DIR/cta.txt:fontcolor=0xB7F36B:fontsize=29:x=82:y=1116:shadowcolor=black@0.4:shadowx=1:shadowy=1,"
+        DECOR+="drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:textfile=$VISUAL_DIR/follow-cta.txt:fontcolor=white:fontsize=21:x=84:y=1167:shadowcolor=black@0.4:shadowx=1:shadowy=1"
       fi
     else
       # Editorial minimal stays available for slower documentary pieces.
