@@ -273,3 +273,5 @@ jobs:
           path: artifacts/${{ steps.prepare.outputs.job_id }}.*
           retention-days: 1
           if-no-files-found: error
+
+# Queue poll can also be triggered by renderer maintenance commits.
