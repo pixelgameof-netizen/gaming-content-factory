@@ -1,27 +1,43 @@
 {
   "schema_version": 1,
   "default_games": [
-    "Minecraft",
-    "Fortnite",
+    "PUBG MOBILE",
+    "NBA 2K27",
+    "The Legend of Zelda",
+    "Sonic the Hedgehog",
     "Roblox",
-    "Grand Theft Auto",
-    "Counter-Strike",
-    "Valorant"
+    "Fortnite"
   ],
   "profiles": [
     {
-      "game": "Minecraft",
+      "game": "PUBG MOBILE",
       "search_terms": [
-        "Minecraft",
-        "Minecraft Classic",
-        "Minecraft gameplay"
+        "PUBG MOBILE",
+        "PUBG Mobile gameplay",
+        "PUBG Mobile Battle Royale"
       ]
     },
     {
-      "game": "Fortnite",
+      "game": "NBA 2K27",
       "search_terms": [
-        "Fortnite",
-        "Fortnite Battle Royale"
+        "NBA 2K27",
+        "NBA 2K27 gameplay"
+      ]
+    },
+    {
+      "game": "The Legend of Zelda",
+      "search_terms": [
+        "The Legend of Zelda",
+        "Zelda gameplay",
+        "Ocarina of Time"
+      ]
+    },
+    {
+      "game": "Sonic the Hedgehog",
+      "search_terms": [
+        "Sonic the Hedgehog",
+        "Sonic gameplay",
+        "Sonic Origins"
       ]
     },
     {
@@ -32,26 +48,10 @@
       ]
     },
     {
-      "game": "Grand Theft Auto",
+      "game": "Fortnite",
       "search_terms": [
-        "Grand Theft Auto",
-        "GTA V",
-        "GTA 5"
-      ]
-    },
-    {
-      "game": "Counter-Strike",
-      "search_terms": [
-        "Counter-Strike",
-        "Counter-Strike 2",
-        "CS2"
-      ]
-    },
-    {
-      "game": "Valorant",
-      "search_terms": [
-        "Valorant",
-        "VALORANT gameplay"
+        "Fortnite",
+        "Fortnite Battle Royale"
       ]
     }
   ],
