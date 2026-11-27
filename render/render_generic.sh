@@ -120,7 +120,7 @@ for ((i=0;i<N;i++)); do
     FILTER+="[bg$i]scale=$WIDTH:$HEIGHT:force_original_aspect_ratio=increase,crop=$WIDTH:$HEIGHT,boxblur=16:8,eq=brightness=-0.20:saturation=0.58[blur$i];"
     # Enlarge the gameplay layer to 1080x960 before centering it. This keeps
     # the full HUD readable while giving the game substantially more screen area.
-    FILTER+="[fg$i]scale=1706:-2,crop=$WIDTH:960:(iw-$WIDTH)/2:(ih-960)/2,eq=contrast=1.04:saturation=1.06:brightness=0.01[fit$i];"
+    FILTER+="[fg$i]scale=$WIDTH:960:force_original_aspect_ratio=increase,crop=$WIDTH:960:(iw-$WIDTH)/2:(ih-960)/2,eq=contrast=1.04:saturation=1.06:brightness=0.01[fit$i];"
     FILTER+="[blur$i][fit$i]overlay=(W-w)/2:(H-h)/2[base$i];"
 
     DECOR=""
